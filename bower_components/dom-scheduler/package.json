@@ -1,6 +1,6 @@
 {
-  "name": "fast-list",
-  "main": "lib/scheduled-list.js",
+  "name": "dom-scheduler",
+  "main": "lib/dom-scheduler.js",
   "devDependencies": {
     "jshint": "^2.7.0",
     "karma": "^0.12.31",
@@ -10,15 +10,15 @@
     "karma-sinon-chai": "^0.3.0"
   },
   "scripts": {
-    "lint": "./node_modules/jshint/bin/jshint lib/*.js test/*.js",
+    "lint": "./node_modules/jshint/bin/jshint lib/dom-scheduler.js test/*.js",
     "test": "./node_modules/karma/bin/karma start test/karma.conf --single-run",
     "test-dev": "./node_modules/karma/bin/karma start test/karma.conf"
   },
   "repository": {
     "type": "git",
-    "url": "git://github.com/gaia-components/fast-list.git"
+    "url": "git://github.com/etiennesegonzac/dom-scheduler.git"
   },
   "bugs": {
-    "url": "https://github.com/gaia-components/fast-list/issues"
+    "url": "https://github.com/etiennesegonzac/dom-scheduler/issues"
   }
 }
