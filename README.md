@@ -1,4 +1,5 @@
 # Scheduled List
+[![](https://travis-ci.org/gaia-components/fast-list.svg)](https://travis-ci.org/gaia-components/fast-list)
 
 The ScheduledList is a virtual list implementation based on the DomScheduler.
 It currently lives in `lib/scheduled-list.js`.
