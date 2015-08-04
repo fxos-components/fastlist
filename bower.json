@@ -7,7 +7,7 @@
     "Wilson Page <wilsonpage@me.com>"
   ],
   "description": "No, really.",
-  "main": "scheduled-list.js",
+  "main": "fast-list.js",
   "keywords": [
     "web",
     "performance",
