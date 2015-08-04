@@ -929,7 +929,7 @@ function schedulerShim() {
 function on(el, name, fn) { el.addEventListener(name, fn); }
 function off(el, name, fn) { el.removeEventListener(name, fn); }
 
-});})((typeof define)[0]=='f'&&define.amd?define:(function(n,w){
-'use strict';return(typeof module)[0]=='o'?function(c){c(require,
-exports,module);}:function(c){var m={exports:{}};c(n=>w[n],m.exports,m);
+});})((typeof define)[0]=='f'&&define.amd?define:(function(n,w){'use strict';
+return(typeof module)[0]=='o'?function(c){c(require,exports,module);}:
+function(c){var m={exports:{}};c(function(n){w[n];},m.exports,m);
 w[n]=m.exports;};})('FastList',this));

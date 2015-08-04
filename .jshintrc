@@ -15,7 +15,6 @@
   "maxlen": 80,
 
   "eqnull": true,
-  "esnext": true,
   "expr": true,
   "globalstrict": true,
 
