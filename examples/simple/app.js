@@ -1,0 +1,22 @@
+/*global DataSource, ScheduledList, scheduler*/
+
+var content = document.getElementById('content');
+var data = createDummyData(1000);
+var dataSource = new DataSource(data);
+var list = new ScheduledList(content, dataSource, scheduler);
+
+function createDummyData(count) {
+  var result = [];
+
+  for (var i = 0; i < count; i++) {
+    result.push({
+      name: 'Song ' + i,
+      metadata: {
+        title: 'Song title ' + i,
+        artist: 'Song artist ' + i
+      }
+    });
+  }
+
+  return result;
+}
