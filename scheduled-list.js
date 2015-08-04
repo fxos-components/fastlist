@@ -1,13 +1,24 @@
 (function(exports) {
   'use strict';
 
+  var debug = 0 ? console.log.bind(console, '[FastList]') : function() {};
+
   var startEvent = ('ontouchstart' in window) ? 'touchstart' : 'mousedown';
   var moveEvent = ('ontouchstart' in window) ? 'touchmove' : 'mousemove';
   var endEvent = ('ontouchstart' in window) ? 'touchend' : 'mouseup';
+  var raf = window.requestAnimationFrame;
+
+  /**
+   * Use the dom-scheduler if it's around,
+   * else fallback to fake shim.
+   *
+   * @type {Object}
+   */
+  var schedule = window.scheduler || schedulerShim();
 
   /* Constructor
      =========== */
-  var list = function list(container, source, scheduler) {
+  var list = function list(container, source) {
     this.editing = false;
 
     container.style.overflowX = 'hidden';
@@ -15,7 +26,6 @@
     this.container = container;
     this.list = container.querySelector('ul');
     this.source = source;
-    this.scheduler = scheduler;
 
     this.geometry = {
       topPosition: 0,
@@ -45,9 +55,9 @@
 
     this.updateContainerGeometry();
 
-    if (debug) {
+    if (debug.name) {
       if (this.geometry.itemHeight !== source.itemHeight()) {
-        log('Template height and source height are not the same.');
+        debug('Template height and source height are not the same.');
       }
     }
 
@@ -67,15 +77,19 @@
 
     this.updateListHeight();
 
-    this.scheduler.attachDirect(this.container, 'scroll',
-                                this.handleScroll.bind(this));
-    this.container.addEventListener('click', this);
-    window.addEventListener('resize', this);
+    schedule.attachDirect(
+      this.container,
+      'scroll',
+      this.handleScroll.bind(this)
+    );
 
-    this.scheduler.mutation((function() {
+    on(this.container, 'click', this);
+    on(window, 'resize', this);
+
+    schedule.mutation(function() {
       this.updateSections();
       this.render();
-    }).bind(this));
+    }.bind(this));
   };
 
   list.prototype = {
@@ -92,7 +106,7 @@
       geo.maxItemCount = Math.floor(itemPerScreen * 2.4);
       geo.switchWindow = Math.floor(itemPerScreen / 2);
 
-      log('maxItemCount: ' + geo.maxItemCount);
+      debug('maxItemCount: ' + geo.maxItemCount);
     },
 
     // Returns true if we're fast scrolling
@@ -134,7 +148,6 @@
     },
 
     render: function(reload, changedIndex) {
-      var scheduler = this.scheduler;
       var source = this.source;
       var items = this._items;
       var itemsInDOM = this._itemsInDOM;
@@ -182,7 +195,7 @@
         var item = items[i];
         if (!item) {
           item = findItemFor(i);
-          tryToPopulate(item, i, source, scheduler, true);
+          tryToPopulate(item, i, source, true);
           item.classList.toggle('new', i === changedIndex);
         } else if (reload) {
           source.populateItem(item, i);
@@ -211,14 +224,14 @@
     handleScroll: function(evt) {
       var fast = this.updateViewportGeometry();
       if (fast) {
-        log('[x] ---------- faaaaassssstttt');
+        debug('[x] ---------- faaaaassssstttt');
       } else {
         this.render();
       }
     },
 
     updateListHeight: function() {
-      return this.scheduler.mutation((function() {
+      return schedule.mutation((function() {
         this.list.style.height = this.source.fullHeight() + 'px';
       }).bind(this));
     },
@@ -234,7 +247,7 @@
     },
 
     reloadData: function() {
-      return this.scheduler.mutation((function() {
+      return schedule.mutation((function() {
         this.updateSections();
         this.render(true);
         this.updateListHeight();
@@ -246,7 +259,7 @@
       var source = this.source;
       var template = this._templateSection;
 
-      return this.scheduler.mutation(function() {
+      return schedule.mutation(function() {
         var nodes = list.querySelectorAll('section');
         for (var i = 0; i < nodes.length; i++) {
           var toRemove = nodes[i];
@@ -282,23 +295,24 @@
         this._stopTouchListeners();
       }
 
-      return toggleEditClass(this.scheduler, this.list,
+      return toggleEditClass(this.list,
                              this._itemsInDOM, this.editing);
     },
 
     _startTouchListeners: function() {
-      this.list.addEventListener(startEvent, this);
-      this.list.addEventListener(endEvent, this);
+      on(this.list, startEvent, this);
+      on(this.list, endEvent, this);
     },
 
     _stopTouchListeners: function() {
-      this.list.removeEventListener(startEvent, this);
-      this.list.removeEventListener(endEvent, this);
+      off(this.list, startEvent, this);
+      off(this.list, endEvent, this);
     },
 
     /* Reordering
        ---------- */
     _reorderStart: function(evt) {
+      debug('reorder start');
       var ctx = this.reorderingContext;
 
       // Already tracking an item, bailing out
@@ -317,7 +331,7 @@
       ctx.moveHandler = this._reorderMove.bind(this);
 
       var listenToMove = (function() {
-        this.scheduler.attachDirect(this.list, moveEvent, ctx.moveHandler);
+        schedule.attachDirect(this.list, moveEvent, ctx.moveHandler);
       }).bind(this);
 
       setupForDragging(this.scheduler, li, true)
@@ -326,6 +340,7 @@
     },
 
     _reorderMove: function(evt) {
+      debug('reorder move');
       var ctx = this.reorderingContext;
       if (!ctx.item) {
         return;
@@ -349,14 +364,15 @@
     },
 
     _reorderEnd: function(evt) {
+      debug('reorder end');
+
       var ctx = this.reorderingContext;
       if (!ctx.item) {
         return;
       }
 
       var li = ctx.item;
-      this.scheduler.detachDirect(this.list, moveEvent, ctx.moveHandler);
-      var scheduler = this.scheduler;
+      schedule.detachDirect(this.list, moveEvent, ctx.moveHandler);
 
       var touch = evt.touches && evt.touches[0] || evt;
       if (touch.identifier == ctx.identifier) {
@@ -366,10 +382,10 @@
       }
 
       Promise.all([
-        applyChanges(scheduler, ctx, this.geometry, this._itemsInDOM),
-        moveInPlace(scheduler, ctx, this.geometry)
+        applyChanges(ctx, this.geometry, this._itemsInDOM),
+        moveInPlace(ctx, this.geometry)
       ]).then(this._reorderFinish.bind(this, li))
-        .then(toggleDraggingClass.bind(null, scheduler, li, false));
+        .then(toggleDraggingClass.bind(null, schedule, li, false));
     },
 
     _reorderFinish: function(li) {
@@ -391,7 +407,7 @@
         return;
       }
 
-      applyChanges(this.scheduler, this.reorderingContext,
+      applyChanges(this.reorderingContext,
                    this.geometry, this._itemsInDOM);
     },
 
@@ -402,7 +418,7 @@
       var items = this._items;
       var source = this.source;
 
-      return this.scheduler.mutation((function() {
+      return schedule.mutation((function() {
         // Nothing to do
         if (!ctx.moveUp && !ctx.moveDown) {
           return;
@@ -455,15 +471,15 @@
       list.classList.add('reordering');
       pushDown(this.scheduler, domItems, this.geometry)
         .then(this._insertOnTop.bind(this, false))
-        .then(cleanInlineStyles.bind(null, this.scheduler, domItems))
-        .then(reveal.bind(null, this.scheduler, this.list))
+        .then(cleanInlineStyles.bind(null, domItems))
+        .then(reveal.bind(null, this.list))
         .then(function() {
           list.classList.remove('reordering');
         });
     },
 
     _insertOnTop: function(keepScrollPosition) {
-      return this.scheduler.mutation((function() {
+      return schedule.mutation((function() {
         this._items.unshift(null);
         delete this._items[0]; // keeping it sparse
 
@@ -485,9 +501,6 @@
         case 'resize':
           this.geometry.viewportHeight = this.container.offsetHeight;
           this.updateContainerGeometry();
-          break;
-        case 'scroll':
-          this.handleScroll(evt);
           break;
         case startEvent:
           if (!evt.target.classList.contains('cursor')) {
@@ -522,23 +535,15 @@
   };
 
   exports.ScheduledList = list;
+  exports.ScheduledList.scheduler = schedule;
 
   /* Internals
      ========= */
 
-  var debug = false;
-  function log(str) {
-    if (!debug) {
-      return;
-    }
-
-    console.log('↕️ ', str);
-  }
-
   /* ASCII Art viewport debugging
      ---------------------------- */
   function debugViewport(items, forward, cStart, cEnd, start, end) {
-    if (!debug) {
+    if (!debug.name) {
       return;
     }
 
@@ -562,7 +567,8 @@
         str += '|';
       }
     }
-    log(str);
+
+    debug(str);
   }
 
   function computeIndices(source, geometry) {
@@ -614,7 +620,7 @@
     return recyclableItems;
   }
 
-  function tryToPopulate(item, index, source, scheduler, first) {
+  function tryToPopulate(item, index, source, first) {
     if (parseInt(item.dataset.index) !== index && !first) {
       // The item was probably reused
       return;
@@ -626,7 +632,7 @@
     if (populateResult instanceof Promise) {
       item.dataset.populated = false;
       populateResult.then(tryToPopulate.bind(null, item, index,
-                                             source, scheduler));
+                                             source));
       return;
     }
 
@@ -637,7 +643,7 @@
 
     // Revealing the populated item
     item.style.transition = 'opacity 0.2s linear';
-    scheduler.transition(function() {
+    schedule.transition(function() {
       item.dataset.populated = true;
     }, item, 'transitionend').then(function() {
       item.style.transition = '';
@@ -681,8 +687,8 @@
     item.style.webkitTransition = '';
   }
 
-  function tweakAndTransition(scheduler, item, tweak) {
-    return scheduler.feedback(function() {
+  function tweakAndTransition(item, tweak) {
+    return schedule.feedback(function() {
       item.style.transition = 'transform 0.15s ease';
       item.style.webkitTransition = '-webkit-transform 0.15s ease';
       if (tweak === 0) {
@@ -694,12 +700,12 @@
     .then(resetTransition.bind(null, item));
   }
 
-  function pushDown(scheduler, domItems, geometry) {
+  function pushDown(domItems, geometry) {
     if (!domItems.length) {
       return Promise.resolve();
     }
 
-    return scheduler.transition(function() {
+    return schedule.transition(function() {
       for (var i = 0; i < domItems.length; i++) {
         var item = domItems[i];
         item.style.transition = 'transform 0.15s ease-in';
@@ -709,10 +715,10 @@
     }, domItems[0], 'transitionend');
   }
 
-  function reveal(scheduler, list) {
+  function reveal(list) {
     var newEl = list.querySelector('li.new');
 
-    return scheduler.transition(function() {
+    return schedule.transition(function() {
       newEl.style.transition = 'opacity 0.25s ease-out';
       newEl.style.webkitTransition = 'opacity 0.25s ease-out';
       setTimeout(function() {
@@ -724,8 +730,8 @@
     });
   }
 
-  function cleanInlineStyles(scheduler, domItems) {
-    return scheduler.mutation(function() {
+  function cleanInlineStyles(domItems) {
+    return schedule.mutation(function() {
       for (var i = 0; i < domItems.length; i++) {
         var item = domItems[i];
         item.style.transition = '';
@@ -736,12 +742,12 @@
     });
   }
 
-  function toggleEditClass(scheduler, list, domItems, editing) {
+  function toggleEditClass(list, domItems, editing) {
     if (!domItems.length) {
       return Promise.resolve();
     }
 
-    return scheduler.feedback(function() {
+    return schedule.feedback(function() {
       for (var i = 0; i < domItems.length; i++) {
         var item = domItems[i];
         var overlay = item.querySelector('.overlay');
@@ -752,7 +758,7 @@
   }
 
   function setupForDragging(scheduler, item, on) {
-    return scheduler.mutation(function() {
+    return schedule.mutation(function() {
       item.parentNode.classList.toggle('reordering', on);
       item.style.zIndex = on ? '1000' : '';
       item.style.boxShadow = on ? '0 0 3px 1px #bcbcbc' : '';
@@ -760,7 +766,7 @@
   }
 
   function toggleDraggingClass(scheduler, item, on) {
-    return scheduler.feedback(function() {
+    return schedule.feedback(function() {
       var overlay = item.querySelector('.overlay');
       overlay.dataset.anim = on ? 'hide' : 'reveal';
     }, item, 'animationend');
@@ -807,7 +813,7 @@
     }
   }
 
-  function applyChanges(scheduler, context, geometry, domItems) {
+  function applyChanges(context, geometry, domItems) {
     if (!context.item) {
       return Promise.resolve();
     }
@@ -826,20 +832,20 @@
       if (item.dataset.tweakDelta &&
          !context.moveUp.has(item) && !context.moveDown.has(item)) {
 
-        promises.push(tweakAndTransition(scheduler, item, 0));
+        promises.push(tweakAndTransition(item, 0));
       }
 
       // Moving down
       if (context.moveDown.has(item)) {
         if (parseInt(item.dataset.tweakDelta) !== itemHeight) {
-          promises.push(tweakAndTransition(scheduler, item, itemHeight));
+          promises.push(tweakAndTransition(item, itemHeight));
         }
       }
 
       // Moving up
       if (context.moveUp.has(item)) {
         if (parseInt(item.dataset.tweakDelta) !== itemHeight * -1) {
-          promises.push(tweakAndTransition(scheduler, item, itemHeight * -1));
+          promises.push(tweakAndTransition(item, itemHeight * -1));
         }
       }
     }
@@ -847,7 +853,7 @@
     return Promise.all(promises);
   }
 
-  function moveInPlace(scheduler, context, geometry) {
+  function moveInPlace(context, geometry) {
     var li = context.item;
 
     // We're already in place
@@ -863,10 +869,55 @@
 
     var duration = (Math.abs(taintedPosition - newPosition) / itemHeight) * 150;
 
-    return scheduler.feedback(function() {
+    return schedule.feedback(function() {
       li.style.transition = 'transform ' + duration + 'ms linear';
       li.style.webkitTransition = '-webkit-transform ' + duration + 'ms linear';
       setTimeout(tweakTransform.bind(null, li, (newPosition - position)));
     }, li, 'transitionend');
   }
+
+  /**
+   * Utils
+   */
+
+  function schedulerShim() {
+    return {
+      mutation: function(block) { return Promise.resolve(block()); },
+      transition: function(block, el, event, timeout) {
+        block();
+        return after(el, event, timeout || 500);
+      },
+
+      // Not sure if this should be different from .transition()
+      feedback: function(block, el, event, timeout) {
+        block();
+        return after(el, event, timeout || 500);
+      },
+
+      attachDirect: function(el, event, fn) {
+        fn._raffed = function(e) { raf(function() { fn(e); } ); };
+        on(el, event, fn._raffed);
+      },
+
+      detachDirect: function(el, event, fn) {
+        off(el, event, fn._raffed);
+      }
+    };
+
+    function after(target, event, timeout) {
+      return new Promise(function(resolve) {
+        var timer = timeout && setTimeout(cb, timeout);
+        on(target, event, cb);
+        function cb() {
+          off(target, event, cb);
+          clearTimeout(timer);
+          resolve();
+        }
+      });
+    }
+  }
+
+  // Shorthand
+  var on = function(el, name, fn) { el.addEventListener(name, fn); };
+  var off = function(el, name, fn) { el.removeEventListener(name, fn); };
 })(window);

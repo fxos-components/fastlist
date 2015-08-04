@@ -9,7 +9,8 @@
     var listContainer = document.querySelector('section');
 
     var source = new BaconSource();
-    var list = new ScheduledList(listContainer, source, scheduler);
+    var list = new ScheduledList(listContainer, source);
+    var scheduler = ScheduledList.scheduler;
 
     function updateHeader() {
       return scheduler.mutation(function() {
