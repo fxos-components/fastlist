@@ -1,7 +1,7 @@
 (function() {
-  var debug = false;
-  var headerHeight = 50;
-  var maxItemCount = 28;
+  /*global BaconSource, FastList*/
+
+  'use strict';
 
   var endEvent = ('ontouchstart' in window) ? 'touchend' : 'mouseup';
 
@@ -9,8 +9,8 @@
     var listContainer = document.querySelector('section');
 
     var source = new BaconSource();
-    var list = new ScheduledList(listContainer, source);
-    var scheduler = ScheduledList.scheduler;
+    var list = new FastList(listContainer, source);
+    var scheduler = FastList.scheduler;
 
     function updateHeader() {
       return scheduler.mutation(function() {
