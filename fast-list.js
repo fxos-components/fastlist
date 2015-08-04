@@ -65,7 +65,7 @@ function FastList(container, source, scheduler) {
   }
 
   this._rendered = false;
-  this._previousTop = 0;
+  this._previousTop = -1;
   this._previousFast = false;
   this._items = [];
   this._itemsInDOM = [];
@@ -117,6 +117,12 @@ FastList.prototype = {
     var geo = this.geometry;
 
     var position = this.container.scrollTop;
+
+    // Don't compute velocity on first load
+    if (this._previousTop === -1) {
+      geo.topPosition = position;
+    }
+
     this._previousTop = geo.topPosition;
     geo.topPosition = position;
 
