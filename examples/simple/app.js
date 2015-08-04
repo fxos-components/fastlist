@@ -1,9 +1,9 @@
-/*global DataSource, ScheduledList, scheduler*/
+/*global DataSource, ScheduledList*/
 
 var content = document.getElementById('content');
 var data = createDummyData(1000);
 var dataSource = new DataSource(data);
-var list = new ScheduledList(content, dataSource, scheduler);
+var list = new ScheduledList(content, dataSource);
 
 function createDummyData(count) {
   var result = [];
