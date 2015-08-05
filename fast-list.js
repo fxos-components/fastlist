@@ -21,7 +21,7 @@ var schedule = window.scheduler || schedulerShim();
 exports = module.exports = FastList;
 exports.scheduler = schedule;
 
-function FastList(container, source, scheduler) {
+function FastList(container, source) {
   this.editing = false;
 
   container.style.overflowX = 'hidden';
@@ -343,9 +343,9 @@ FastList.prototype = {
       schedule.attachDirect(this.list, moveEvent, ctx.moveHandler);
     }).bind(this);
 
-    setupForDragging(this.scheduler, li, true)
+    setupForDragging(li, true)
       .then(listenToMove)
-      .then(toggleDraggingClass.bind(null, this.scheduler, li, true));
+      .then(toggleDraggingClass.bind(null, li, true));
   },
 
   _reorderMove: function(evt) {
@@ -394,13 +394,12 @@ FastList.prototype = {
       applyChanges(ctx, this.geometry, this._itemsInDOM),
       moveInPlace(ctx, this.geometry)
     ]).then(this._reorderFinish.bind(this, li))
-      .then(toggleDraggingClass.bind(null, schedule, li, false));
+      .then(toggleDraggingClass.bind(null, li, false));
   },
 
   _reorderFinish: function(li) {
-    var scheduler = this.scheduler;
     return Promise.all([this._commitToDocument(),
-                        setupForDragging(scheduler, li, false)]);
+                        setupForDragging(li, false)]);
   },
 
   _rearrange: function(delta) {
@@ -478,7 +477,7 @@ FastList.prototype = {
     var list = this.list;
 
     list.classList.add('reordering');
-    pushDown(this.scheduler, domItems, this.geometry)
+    pushDown(domItems, this.geometry)
       .then(this._insertOnTop.bind(this, false))
       .then(cleanInlineStyles.bind(null, domItems))
       .then(reveal.bind(null, this.list))
@@ -763,7 +762,7 @@ function toggleEditClass(list, domItems, editing) {
   }, list, 'animationend');
 }
 
-function setupForDragging(scheduler, item, on) {
+function setupForDragging(item, on) {
   return schedule.mutation(function() {
     item.parentNode.classList.toggle('reordering', on);
     item.style.zIndex = on ? '1000' : '';
@@ -771,7 +770,7 @@ function setupForDragging(scheduler, item, on) {
   });
 }
 
-function toggleDraggingClass(scheduler, item, on) {
+function toggleDraggingClass(item, on) {
   return schedule.feedback(function() {
     var overlay = item.querySelector('.overlay');
     overlay.dataset.anim = on ? 'hide' : 'reveal';
