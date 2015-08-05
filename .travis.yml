@@ -3,6 +3,9 @@ language: node_js
 node_js:
   - '0.10'
 
+addons:
+  firefox: '36.0'
+
 before_install:
   - export CHROME_BIN=chromium-browser
 

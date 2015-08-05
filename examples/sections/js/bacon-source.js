@@ -50,7 +50,11 @@
     },
 
     getSections: function() {
-      return this.contentMap.keys();
+      var sections = [];
+      for (section of this.contentMap.keys()) {
+        sections.push(section);
+      }
+      return sections;
     },
 
     sectionHeaderHeight: function() {

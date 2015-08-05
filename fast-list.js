@@ -51,7 +51,7 @@ function FastList(container, source) {
   template.style.overflow = 'hidden';
   template.style.willChange = 'transform';
 
-  this.geometry.itemHeight = template.offsetHeight;
+  this.geometry.itemHeight = source.itemHeight();
   template.remove();
 
   this._template = template;
@@ -59,7 +59,7 @@ function FastList(container, source) {
   this.updateContainerGeometry();
 
   if (debug.name) {
-    if (this.geometry.itemHeight !== source.itemHeight()) {
+    if (this.geometry.itemHeight !== template.offsetHeight) {
       debug('Template height and source height are not the same.');
     }
   }
@@ -78,8 +78,6 @@ function FastList(container, source) {
     moveDown: null,
   };
 
-  this.updateListHeight();
-
   schedule.attachDirect(
     this.container,
     'scroll',
@@ -90,6 +88,7 @@ function FastList(container, source) {
   on(window, 'resize', this);
 
   schedule.mutation(function() {
+    this.updateListHeight();
     this.updateSections();
     this.render();
   }.bind(this));
@@ -106,7 +105,7 @@ FastList.prototype = {
     var itemPerScreen = geo.viewportHeight / geo.itemHeight;
     // Taking into account the will-change budget multiplier from
     // layout/base/nsDisplayList.cpp#1193
-    geo.maxItemCount = Math.floor(itemPerScreen * 2.4);
+    geo.maxItemCount = Math.floor(itemPerScreen * 2.8);
     geo.switchWindow = Math.floor(itemPerScreen / 2);
 
     debug('maxItemCount: ' + geo.maxItemCount);
@@ -240,9 +239,7 @@ FastList.prototype = {
   },
 
   updateListHeight: function() {
-    return schedule.mutation((function() {
-      this.list.style.height = this.source.fullHeight() + 'px';
-    }).bind(this));
+    this.list.style.height = this.source.fullHeight() + 'px';
   },
 
   get scrollTop() {
@@ -268,28 +265,26 @@ FastList.prototype = {
     var source = this.source;
     var template = this._templateSection;
 
-    return schedule.mutation(function() {
-      var nodes = list.querySelectorAll('section');
-      for (var i = 0; i < nodes.length; i++) {
-        var toRemove = nodes[i];
-        toRemove.remove();
-      }
+    var nodes = list.querySelectorAll('section');
+    for (var i = 0; i < nodes.length; i++) {
+      var toRemove = nodes[i];
+      toRemove.remove();
+    }
 
-      var headerHeight = source.sectionHeaderHeight();
-      for (var section of source.getSections()) {
-        var height = source.fullSectionHeight(section);
+    var headerHeight = source.sectionHeaderHeight();
+    source.getSections().forEach(function(section) {
+      var height = source.fullSectionHeight(section);
 
-        var sectionNode = template.cloneNode(true);
-        sectionNode.style.height = headerHeight + height + 'px';
+      var sectionNode = template.cloneNode(true);
+      sectionNode.style.height = headerHeight + height + 'px';
 
-        var title = sectionNode.firstChild;
-        title.firstChild.data = section;
+      var title = sectionNode.firstChild;
+      title.firstChild.data = section;
 
-        var background = title.nextSibling;
-        background.style.height = height + 'px';
+      var background = title.nextSibling;
+      background.style.height = height + 'px';
 
-        list.appendChild(sectionNode);
-      }
+      list.appendChild(sectionNode);
     });
   },
 
@@ -533,10 +528,13 @@ FastList.prototype = {
         var li = evt.target;
         var index = this._items.indexOf(li);
 
-        this.list.dispatchEvent(new CustomEvent('item-selected', {detail: {
-          index: index,
-          clickEvt: evt
-        }}));
+        this.list.dispatchEvent(new CustomEvent('item-selected', {
+          bubbles: true,
+          detail: {
+            index: index,
+            clickEvt: evt,
+          }
+        }));
         break;
     }
   }
