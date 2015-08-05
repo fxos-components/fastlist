@@ -23,6 +23,8 @@
   "laxcomma": true,
   "proto": true,
 
+  "esnext": true,
+
   "browser": true,
   "devel": true,
   "nonstandard": true,
