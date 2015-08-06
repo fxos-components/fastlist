@@ -1,4 +1,6 @@
 (function(exports) {
+  'use strict';
+
   var listSize = 1042;
   var sectionCount = 25;
 
@@ -14,7 +16,8 @@
     }
   }
 
-  exports.BaconSource = function BaconSource() {
+  exports.BaconSource = function BaconSource(container) {
+    this.container = container;
     this.sections = [];
     this.contentMap = new Map();
     this._cachedLength = null;
@@ -33,6 +36,14 @@
   };
 
   exports.BaconSource.prototype = {
+    itemTemplate: '<li><h3> </h3><p> </p><div class="overlay">' +
+      '<div class="cursor">↕︎</div></div></li>',
+
+    sectionTemplate: '<section><h2> </h2><div class="background">' +
+    '</div></section>',
+
+
+
     populateItem: function(item, i) {
       // Simulates the data source not being ready to populate
       /*if (parseInt(Date.now() / 10) % 8 === 0) {*/
@@ -49,9 +60,18 @@
       body.firstChild.data = record.body;
     },
 
+    populateSection: function(el, section, i) {
+      var title = el.firstChild;
+      var height = this.fullSectionHeight(section);
+      var background = title.nextSibling;
+
+      background.style.height = height + 'px';
+      title.firstChild.data = section;
+    },
+
     getSections: function() {
       var sections = [];
-      for (section of this.contentMap.keys()) {
+      for (var section of this.contentMap.keys()) {
         sections.push(section);
       }
       return sections;

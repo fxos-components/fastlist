@@ -8,6 +8,10 @@
   };
 
   exports.DataSource.prototype = {
+    itemTemplate: '<li><h3> </h3><p> </p></li>',
+    sectionTemplate: '<section><h2> </h2><div class="background">' +
+     '</div></section>',
+
     populateItem: function(item, i) {
       var title = item.querySelector('h3');
       var body = item.querySelector('p');
@@ -15,6 +19,15 @@
 
       title.textContent = record.title;
       body.textContent = record.body;
+    },
+
+    populateSection: function(el, section, i) {
+      var title = el.firstChild;
+      var height = this.fullSectionHeight(section);
+      var background = title.nextSibling;
+
+      background.style.height = height + 'px';
+      title.firstChild.data = section;
     },
 
     getSections: function() {

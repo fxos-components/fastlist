@@ -8,8 +8,8 @@
   window.addEventListener('load', function() {
     var listContainer = document.querySelector('section');
 
-    var source = new BaconSource();
-    var list = new FastList(listContainer, source);
+    var source = new BaconSource(listContainer);
+    var list = new FastList(source);
     var scheduler = FastList.scheduler;
 
     function updateHeader() {
