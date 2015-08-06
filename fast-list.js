@@ -1,6 +1,6 @@
 !(function(define){'use strict';define(function(require,exports,module){
 
-var debug = 1 ? console.log.bind(console, '[FastList]') : function() {};
+var debug = 0 ? console.log.bind(console, '[FastList]') : function() {};
 
 var startEvent = ('ontouchstart' in window) ? 'touchstart' : 'mousedown';
 var moveEvent = ('ontouchstart' in window) ? 'touchmove' : 'mousemove';
