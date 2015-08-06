@@ -26,21 +26,10 @@ suite('FastList >', function() {
     sinon.stub(scheduler, 'mutation');
 
     fakeDoc = document.createElement('div');
+    container = document.createElement('div');
+    fakeDoc.appendChild(container);
     document.body.appendChild(fakeDoc);
-    fakeDoc.innerHTML = '<div id="container">' +
-                        '  <ul>' +
-                        '    <section' +
-                        '      ><h2> </h2' +
-                        '      ><div class="background"></div>' +
-                        '    </section>' +
-                        '    <li>' +
-                        '      <h3></h3>' +
-                        '      <p></p>' +
-                        '    </li>' +
-                        '  </ul>' +
-                        '</div>';
 
-    container = fakeDoc.querySelector('#container');
     container.style.width = '320px';
     container.style.height = '480px';
 
@@ -49,6 +38,7 @@ suite('FastList >', function() {
     // 7.5 items per screen
     var data = createDummyData(1000);
     source = new DataSource(data);
+    source.container = container;
   });
 
   teardown(function() {
@@ -90,17 +80,12 @@ suite('FastList >', function() {
     var fastList;
 
     setup(function() {
-      fastList = new FastList(container, source);
+      fastList = new FastList(source);
     });
 
     test('it sets the required styles on the container', function() {
       assert.equal(container.style.overflowX, 'hidden');
       assert.equal(container.style.overflowY, 'scroll');
-    });
-
-    test('it removes the tempates from the DOM', function() {
-      assert.isNull(container.querySelector('ul li'));
-      assert.isNull(container.querySelector('ul section'));
     });
 
     test('it attaches a direct block to the scroll event', function() {
@@ -153,7 +138,7 @@ suite('FastList >', function() {
     var fastList;
 
     setup(function() {
-      fastList = new FastList(container, source);
+      fastList = new FastList(source);
       scheduler.mutation.yield();
 
       container.scrollTop = 1200; // 2.5 viewports
@@ -213,7 +198,7 @@ suite('FastList >', function() {
     var fastList;
 
     setup(function() {
-      fastList = new FastList(container, source);
+      fastList = new FastList(source);
       scheduler.mutation.yield();
 
       fastList.scrollInstantly(1200);
@@ -228,7 +213,7 @@ suite('FastList >', function() {
     var fastList;
 
     setup(function() {
-      fastList = new FastList(container, source);
+      fastList = new FastList(source);
       scheduler.mutation.yield();
 
       container.scrollTop = 1200;
@@ -266,7 +251,7 @@ suite('FastList >', function() {
     var fastList;
 
     setup(function() {
-      fastList = new FastList(container, source);
+      fastList = new FastList(source);
       scheduler.mutation.yield();
     });
 
@@ -291,7 +276,7 @@ suite('FastList >', function() {
     var fastList;
 
     setup(function() {
-      fastList = new FastList(container, source);
+      fastList = new FastList(source);
       scheduler.mutation.yield();
 
       container.scrollTop = 1200;

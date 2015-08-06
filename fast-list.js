@@ -1,6 +1,6 @@
 !(function(define){'use strict';define(function(require,exports,module){
 
-var debug = 0 ? console.log.bind(console, '[FastList]') : function() {};
+var debug = 1 ? console.log.bind(console, '[FastList]') : function() {};
 
 var startEvent = ('ontouchstart' in window) ? 'touchstart' : 'mousedown';
 var moveEvent = ('ontouchstart' in window) ? 'touchmove' : 'mousemove';
@@ -21,13 +21,17 @@ var schedule = window.scheduler || schedulerShim();
 exports = module.exports = FastList;
 exports.scheduler = schedule;
 
-function FastList(container, source) {
+function FastList(source) {
+  debug('initialize', source);
   this.editing = false;
 
-  container.style.overflowX = 'hidden';
-  container.style.overflowY = 'scroll';
-  this.container = container;
-  this.list = container.querySelector('ul');
+  this.container = source.container;
+  this.container.style.overflowX = 'hidden';
+  this.container.style.overflowY = 'scroll';
+
+  this.list = document.createElement('ul');
+  this.container.appendChild(this.list);
+
   this.source = source;
 
   this.geometry = {
@@ -41,21 +45,18 @@ function FastList(container, source) {
     switchWindow: 0
   };
 
-  this._templateSection = this.list.querySelector('section');
+  this._templateSection = elementify(source.sectionTemplate);
+  this._templateSection.classList.add('fl-section');
   this.geometry.headerHeight = source.sectionHeaderHeight();
-  this._templateSection.remove();
 
-  var template = this.list.querySelector('li');
+  var template = elementify(source.itemTemplate);
   template.style.position = 'absolute';
   template.style.left = template.style.top = 0;
   template.style.overflow = 'hidden';
   template.style.willChange = 'transform';
-
-  this.geometry.itemHeight = source.itemHeight();
-  template.remove();
-
   this._template = template;
 
+  this.geometry.itemHeight = source.itemHeight();
   this.updateContainerGeometry();
 
   if (debug.name) {
@@ -240,6 +241,7 @@ FastList.prototype = {
 
   updateListHeight: function() {
     this.list.style.height = this.source.fullHeight() + 'px';
+    debug('updated list height', this.list.style.height);
   },
 
   get scrollTop() {
@@ -261,31 +263,27 @@ FastList.prototype = {
   },
 
   updateSections: function() {
-    var list = this.list;
-    var source = this.source;
+    var nodes = this.list.querySelectorAll('.fl-section');
     var template = this._templateSection;
+    var source = this.source;
 
-    var nodes = list.querySelectorAll('section');
     for (var i = 0; i < nodes.length; i++) {
       var toRemove = nodes[i];
       toRemove.remove();
     }
 
     var headerHeight = source.sectionHeaderHeight();
-    source.getSections().forEach(function(section) {
+    var sections = this.source.getSections();
+
+    sections.forEach(function(section, i) {
       var height = source.fullSectionHeight(section);
 
       var sectionNode = template.cloneNode(true);
       sectionNode.style.height = headerHeight + height + 'px';
 
-      var title = sectionNode.firstChild;
-      title.firstChild.data = section;
-
-      var background = title.nextSibling;
-      background.style.height = height + 'px';
-
-      list.appendChild(sectionNode);
-    });
+      this.source.populateSection(sectionNode, section, i);
+      this.list.appendChild(sectionNode);
+    }, this);
   },
 
   /* Edit mode
@@ -920,6 +918,14 @@ function schedulerShim() {
       }
     });
   }
+}
+
+function elementify(html) {
+  var div = document.createElement('div');
+  div.innerHTML = html;
+  var content = div.firstElementChild;
+  content.remove();
+  return content;
 }
 
 // Shorthand

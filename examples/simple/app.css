@@ -26,31 +26,14 @@ footer {
 
 ul {
   list-style: none;
-  padding: 0 0 0 0;
-  margin: 0;
-}
-
-ul section {
-  margin: 0;
   padding: 0;
-}
-
-ul h2 {
-  display: none;
-}
-
-.background {
-  position: absolute;
-  z-index: 0;
-
-  width: 100%;
+  margin: 0;
 
   background: linear-gradient(to top, #bcbcbc, #bcbcbc 1px, white 1px, white);
   background-position: 0 -88px;
   background-size: 100% 88px;
   background-repeat: repeat-y;
 }
-
 
 ul li {
   width: 100%;
