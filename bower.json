@@ -22,5 +22,8 @@
     "examples",
     "test",
     "tests"
-  ]
+  ],
+  "dependencies": {
+    "gaia-component": "gaia-components/gaia-component#~0.3.8"
+  }
 }
