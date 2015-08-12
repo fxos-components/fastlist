@@ -21,6 +21,13 @@ suite('FastList >', function() {
 
   var scheduler = FastList.scheduler;
 
+  var MockPromise = function() {
+    this.promise = new Promise(function(resolve, reject) {
+      this.resolve = resolve;
+      this.reject = reject;
+    }.bind(this));
+  };
+
   setup(function() {
     sinon.stub(scheduler, 'attachDirect');
     sinon.stub(scheduler, 'mutation');
@@ -74,6 +81,15 @@ suite('FastList >', function() {
     assert.equal(displayedIndices[0], from);
     assert.equal(displayedIndices[displayedIndices.length - 1], to);
     assert.equal(displayedIndices.length, to - from + 1);
+  }
+
+  function assertClassOnItems(css, on) {
+    var items = container.querySelectorAll('ul li');
+
+    for (var i = 0; i < items.length; i++) {
+      var item = items[i];
+      assert.equal(item.classList.contains(css), on);
+    }
   }
 
   suite('FastList() constructor', function() {
@@ -194,6 +210,28 @@ suite('FastList >', function() {
     });
   });
 
+  suite('Scrolling back to top >', function() {
+    var fastList;
+
+    setup(function() {
+      fastList = new FastList(source);
+      scheduler.mutation.yield();
+
+      container.scrollTop = 1200;
+      scheduler.attachDirect.yield();
+    });
+
+    test('it dispatches a CustomEvent', function(done) {
+      container.addEventListener('top-reached', function wait(evt) {
+        container.removeEventListener('top-reached', wait);
+        done();
+      });
+
+      container.scrollTop = 0;
+      scheduler.attachDirect.yield();
+    });
+  });
+
   suite('FastList#scrollInstantly(by) >', function() {
     var fastList;
 
@@ -272,25 +310,45 @@ suite('FastList >', function() {
     });
   });
 
-  suite('Scrolling back to top >', function() {
+  suite('Edit mode >', function() {
     var fastList;
+    var schedulerPromise;
 
     setup(function() {
       fastList = new FastList(source);
       scheduler.mutation.yield();
 
-      container.scrollTop = 1200;
-      scheduler.attachDirect.yield();
+      schedulerPromise = new MockPromise();
+      sinon.stub(scheduler, 'feedback').returns(schedulerPromise.promise);
     });
 
-    test('it dispatches a CustomEvent', function(done) {
-      container.addEventListener('top-reached', function wait(evt) {
-        container.removeEventListener('top-reached', wait);
-        done();
-      });
+    teardown(function() {
+      scheduler.feedback.restore();
+    });
 
-      container.scrollTop = 0;
-      scheduler.attachDirect.yield();
+    test('it exposes an |editing| property', function() {
+      assert.isFalse(fastList.editing);
+      fastList.toggleEditMode();
+      assert.isTrue(fastList.editing);
+      fastList.toggleEditMode();
+      assert.isFalse(fastList.editing);
+    });
+
+    test('it returns a scheduler promise', function(done) {
+      fastList.toggleEditMode().then(done);
+      schedulerPromise.resolve();
+    });
+
+    test('it toggles the edit class on all dom items', function() {
+      assertClassOnItems('edit', false);
+
+      fastList.toggleEditMode();
+      scheduler.feedback.yield();
+      assertClassOnItems('edit', true);
+
+      fastList.toggleEditMode();
+      scheduler.feedback.yield();
+      assertClassOnItems('edit', false);
     });
   });
 });
