@@ -8,7 +8,7 @@
   };
 
   exports.DataSource.prototype = {
-    itemTemplate: '<li><h3> </h3><p> </p></li>',
+    itemTemplate: '<li><h3> </h3><p> </p><div class="overlay"></div></li>',
     sectionTemplate: '<section><h2> </h2><div class="background">' +
      '</div></section>',
 
