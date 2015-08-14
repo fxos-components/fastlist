@@ -8,7 +8,8 @@
   };
 
   exports.DataSource.prototype = {
-    itemTemplate: '<li><h3> </h3><p> </p><div class="overlay"></div></li>',
+    itemTemplate: '<li><h3> </h3><p> </p><div class="overlay">' +
+      '<div class="cursor"></div></div></li>',
     sectionTemplate: '<section><h2> </h2><div class="background">' +
      '</div></section>',
 
@@ -80,7 +81,7 @@
       return this.items.splice(index, 0, record);
     },
 
-    replaceAtIndex: function(index, record) {
+    removeAtIndex: function(index, record) {
       return this.items.splice(index, 1)[0];
     }
   };
