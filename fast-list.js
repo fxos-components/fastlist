@@ -29,8 +29,13 @@ function FastList(source) {
   this.container.style.overflowX = 'hidden';
   this.container.style.overflowY = 'scroll';
 
-  this.list = document.createElement('ul');
-  this.container.appendChild(this.list);
+  this.list = source.list;
+  if (!this.list) {
+    this.list = document.createElement('ul');
+    this.container.appendChild(this.list);
+  }
+
+  this.itemContainer = source.itemContainer || this.list;
 
   this.source = source;
 
@@ -162,7 +167,7 @@ FastList.prototype = {
     var itemsInDOM = this._itemsInDOM;
     var geo = this.geometry;
     var template = this._template;
-    var list = this.list;
+    var list = this.itemContainer;
 
     var indices = computeIndices(this.source, this.geometry);
     var criticalStart = indices.cStart;
@@ -263,7 +268,7 @@ FastList.prototype = {
   },
 
   updateSections: function() {
-    var nodes = this.list.querySelectorAll('.fl-section');
+    var nodes = this.itemContainer.querySelectorAll('.fl-section');
     var template = this._templateSection;
     var source = this.source;
 
@@ -282,7 +287,7 @@ FastList.prototype = {
       sectionNode.style.height = headerHeight + height + 'px';
 
       this.source.populateSection(sectionNode, section, i);
-      this.list.appendChild(sectionNode);
+      this.itemContainer.appendChild(sectionNode);
     }, this);
   },
 
@@ -297,18 +302,20 @@ FastList.prototype = {
       this._stopTouchListeners();
     }
 
-    return toggleEditClass(this.list,
-                           this._itemsInDOM, this.editing);
+    return toggleEditClass(
+      this.itemContainer,
+      this._itemsInDOM,
+      this.editing);
   },
 
   _startTouchListeners: function() {
-    on(this.list, startEvent, this);
-    on(this.list, endEvent, this);
+    on(this.itemContainer, startEvent, this);
+    on(this.itemContainer, endEvent, this);
   },
 
   _stopTouchListeners: function() {
-    off(this.list, startEvent, this);
-    off(this.list, endEvent, this);
+    off(this.itemContainer, startEvent, this);
+    off(this.itemContainer, endEvent, this);
   },
 
   /* Reordering
@@ -333,7 +340,10 @@ FastList.prototype = {
     ctx.moveHandler = this._reorderMove.bind(this);
 
     var listenToMove = (function() {
-      schedule.attachDirect(this.list, moveEvent, ctx.moveHandler);
+      schedule.attachDirect(
+        this.itemContainer,
+        moveEvent,
+        ctx.moveHandler);
     }).bind(this);
 
     setupForDragging(li, true)
@@ -374,7 +384,10 @@ FastList.prototype = {
     }
 
     var li = ctx.item;
-    schedule.detachDirect(this.list, moveEvent, ctx.moveHandler);
+    schedule.detachDirect(
+      this.itemContainer,
+      moveEvent,
+      ctx.moveHandler);
 
     var touch = evt.touches && evt.touches[0] || evt;
     if (touch.identifier == ctx.identifier) {
@@ -467,13 +480,13 @@ FastList.prototype = {
     }
 
     var domItems = this._itemsInDOM;
-    var list = this.list;
+    var list = this.itemContainer;
 
     list.classList.add('reordering');
     pushDown(domItems, this.geometry)
       .then(this._insertOnTop.bind(this, false))
       .then(cleanInlineStyles.bind(null, domItems))
-      .then(reveal.bind(null, this.list))
+      .then(reveal.bind(null, list))
       .then(function() {
         list.classList.remove('reordering');
       });
@@ -526,7 +539,7 @@ FastList.prototype = {
         var li = evt.target;
         var index = this._items.indexOf(li);
 
-        this.list.dispatchEvent(new CustomEvent('item-selected', {
+        this.itemContainer.dispatchEvent(new CustomEvent('item-selected', {
           bubbles: true,
           detail: {
             index: index,
@@ -576,7 +589,6 @@ function computeIndices(source, geometry) {
   var criticalStart = source.indexAtPosition(geometry.topPosition);
   var criticalEnd = source.indexAtPosition(geometry.topPosition +
                                            geometry.viewportHeight);
-
   var canPrerender = geometry.maxItemCount -
                      (criticalEnd - criticalStart) - 1;
   var before = geometry.switchWindow;
@@ -932,7 +944,7 @@ function elementify(html) {
 function on(el, name, fn) { el.addEventListener(name, fn); }
 function off(el, name, fn) { el.removeEventListener(name, fn); }
 
-});})((typeof define)[0]=='f'&&define.amd?define:(function(n,w){'use strict';
+});})((typeof define)[0]=='f'&&define.amd?define:(function(n,n2,w){'use strict';
 return(typeof module)[0]=='o'?function(c){c(require,exports,module);}:
 function(c){var m={exports:{}};c(function(n){w[n];},m.exports,m);
-w[n]=m.exports;};})('FastList',this));
+w[n]=w[n2]=m.exports;};})('FastList','fast-list',this));
