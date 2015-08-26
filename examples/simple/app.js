@@ -9,8 +9,18 @@ var itemHeight = 88;
 
 var list = new FastList({
   container: content,
-  itemTemplate: '<li><h3> </h3><p> </p></li>',
-  sectionTemplate: '<section><h2> </h2><div class="background"></div></section>',
+
+  createItem: function() {
+    var section = document.createElement('li');
+    section.innerHTML = '<h3> </h3><p> </p>';
+    return section;
+  },
+
+  createSection: function() {
+    var section = document.createElement('section');
+    section.innerHTML = '<h2> </h2><div class="background"></div>';
+    return section;
+  },
 
   populateItem: function(el, i) {
     debug('populate item', el);

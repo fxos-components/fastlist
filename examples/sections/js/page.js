@@ -28,7 +28,7 @@
         alert(li.title + ' item clicked!');
       });
     }
-    list.list.addEventListener('item-selected', openAlert);
+    list.els.list.addEventListener('item-selected', openAlert);
 
     function clearNewIndicator() {
       var h1After = document.querySelector('#h1-after');

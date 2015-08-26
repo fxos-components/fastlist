@@ -1,4 +1,6 @@
 (function(exports) {
+  /*global poplar*/
+
   'use strict';
 
   var listSize = 1042;
@@ -13,7 +15,7 @@
              Date.now().toString().slice(7, -1),
       body: 'Turkey pig boudin ' + name.toLowerCase() +
             ' de mignon drums and all ' + prefix + '.'
-    }
+    };
   }
 
   exports.BaconSource = function BaconSource(container) {
@@ -36,28 +38,20 @@
   };
 
   exports.BaconSource.prototype = {
-    itemTemplate: '<li><h3> </h3><p> </p><div class="overlay">' +
-      '<div class="cursor">↕︎</div></div></li>',
+    createItem: function() {
+      return poplar('<li><h3>${title}</h3><p>${body}</p><div class="overlay">' +
+      '<div class="cursor">↕︎</div></div></li>');
+    },
 
-    sectionTemplate: '<section><h2> </h2><div class="background">' +
-    '</div></section>',
-
-
-
-    populateItem: function(item, i) {
-      // Simulates the data source not being ready to populate
-      /*if (parseInt(Date.now() / 10) % 8 === 0) {*/
-        /*return new Promise(function(resolve, reject) {*/
-          /*setTimeout(resolve, Math.random() * 1000);*/
-        /*});*/
-      /*}*/
-
-      var title = item.firstChild;
-      var body = title.nextSibling;
+    populateItem: function(el, i) {
       var record = this.getRecordAt(i);
+      poplar.populate(el, record);
+    },
 
-      title.firstChild.data = record.title;
-      body.firstChild.data = record.body;
+    createSection: function() {
+      var section = document.createElement('section');
+      section.innerHTML = '<h2> </h2><div class="background"></div>';
+      return section;
     },
 
     populateSection: function(el, section, i) {
