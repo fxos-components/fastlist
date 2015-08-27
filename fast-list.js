@@ -57,9 +57,8 @@ function FastList(source) {
     switchWindow: 0
   };
 
-  this.geometry.headerHeight = source.sectionHeaderHeight();
-  this.geometry.itemHeight = source.itemHeight();
-  this.updateContainerGeometry();
+  this.geometry.headerHeight = source.getSectionHeaderHeight();
+  this.geometry.itemHeight = source.getItemHeight();
 
   this._rendered = false;
   this._previousTop = -1;
@@ -85,6 +84,7 @@ function FastList(source) {
   on(window, 'resize', this);
 
   schedule.mutation(function() {
+    this.updateContainerGeometry();
     this.updateListHeight();
     this.updateSections();
     this.render();
@@ -98,7 +98,7 @@ FastList.prototype = {
   updateContainerGeometry: function() {
     var geo = this.geometry;
 
-    geo.viewportHeight = this.els.container.offsetHeight;
+    geo.viewportHeight = this.getViewportHeight();
     var itemPerScreen = geo.viewportHeight / geo.itemHeight;
     // Taking into account the will-change budget multiplier from
     // layout/base/nsDisplayList.cpp#1193
@@ -106,6 +106,21 @@ FastList.prototype = {
     geo.switchWindow = Math.floor(itemPerScreen / 2);
 
     debug('maxItemCount: ' + geo.maxItemCount);
+  },
+
+  /**
+   * Returns the height of the list container.
+   *
+   * Attempts to use user provided .getViewportHeight()
+   * from the configuration, falling back to sync
+   * reflow .offsetHeight :(
+   *
+   * @return {Number}
+   */
+  getViewportHeight: function() {
+    return this.source.getViewportHeight
+      ? this.source.getViewportHeight()
+      : this.els.container.offsetHeight;
   },
 
   // Returns true if we're fast scrolling
@@ -150,12 +165,15 @@ FastList.prototype = {
     this._previousFast = fastScrolling;
 
     var onTop = position === 0;
-    var atBottom = position === this.source.fullHeight() - geo.viewportHeight;
+    var atBottom = position ===
+      (this.source.getFullHeight() - geo.viewportHeight);
 
     return fastScrolling && !onTop && !atBottom;
   },
 
   render: function(reload, changedIndex) {
+    debug('render');
+
     var source = this.source;
     var items = this._items;
     var itemsInDOM = this._itemsInDOM;
@@ -173,7 +191,7 @@ FastList.prototype = {
     if (!this._rendered) {
       this._rendered = true;
       endIndex = Math.min(
-        source.fullLength() - 1,
+        source.getFullLength() - 1,
         startIndex + this.geometry.maxItemCount - 1
       );
     }
@@ -182,7 +200,8 @@ FastList.prototype = {
       items,
       criticalStart,
       criticalEnd,
-      geo.forward ? endIndex : startIndex);
+      geo.forward ? endIndex : startIndex
+    );
 
     if (geo.forward) {
       for (var i = startIndex; i <= endIndex; ++i) renderItem(i);
@@ -260,7 +279,7 @@ FastList.prototype = {
   },
 
   updateListHeight: function() {
-    this.els.list.style.height = this.source.fullHeight() + 'px';
+    this.els.list.style.height = this.source.getFullHeight() + 'px';
     debug('updated list height', this.els.list.style.height);
   },
 
@@ -291,11 +310,11 @@ FastList.prototype = {
       toRemove.remove();
     }
 
-    var headerHeight = source.sectionHeaderHeight();
+    var headerHeight = source.getSectionHeaderHeight();
     var sections = this.source.getSections();
 
     sections.forEach(function(section, i) {
-      var height = source.fullSectionHeight(section);
+      var height = source.getFullSectionHeight(section);
       var el = this.createSection();
 
       el.style.height = headerHeight + height + 'px';
@@ -532,7 +551,6 @@ FastList.prototype = {
   handleEvent: function(evt) {
     switch (evt.type) {
       case 'resize':
-        this.geometry.viewportHeight = this.els.container.offsetHeight;
         this.updateContainerGeometry();
         break;
       case startEvent:
@@ -606,14 +624,14 @@ function debugViewport(items, forward, cStart, cEnd, start, end) {
 }
 
 function computeIndices(source, geometry) {
-  var criticalStart = source.indexAtPosition(geometry.topPosition);
-  var criticalEnd = source.indexAtPosition(geometry.topPosition +
+  var criticalStart = source.getIndexAtPosition(geometry.topPosition);
+  var criticalEnd = source.getIndexAtPosition(geometry.topPosition +
                                            geometry.viewportHeight);
   var canPrerender = geometry.maxItemCount -
                      (criticalEnd - criticalStart) - 1;
   var before = geometry.switchWindow;
   var after = canPrerender - before;
-  var lastIndex = source.fullLength() - 1;
+  var lastIndex = source.getFullLength() - 1;
 
   var startIndex;
   var endIndex;
@@ -692,12 +710,15 @@ function tryToPopulate(item, index, source, first) {
 }
 
 function placeItem(item, index, section, geometry, source, reload) {
+  debug('place item');
+
   if (parseInt(item.dataset.index) === index && !reload) {
     // The item was probably reused
+    debug('abort: item resused');
     return;
   }
 
-  item.dataset.position = source.positionForIndex(index);
+  item.dataset.position = source.getPositionForIndex(index);
   item.dataset.index = index;
   item.dataset.section = section;
 

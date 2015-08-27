@@ -1,3 +1,4 @@
 node_modules
 /bower_components
+examples/bower_components/dom-scheduler/bower_components/
 .DS_Store

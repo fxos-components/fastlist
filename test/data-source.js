@@ -32,7 +32,7 @@
 
     populateSection: function(el, section, i) {
       var title = el.firstChild;
-      var height = this.fullSectionHeight(section);
+      var height = this.getFullSectionHeight(section);
       var background = title.nextSibling;
 
       background.style.height = height + 'px';
@@ -43,16 +43,16 @@
       return ['Section Name'];
     },
 
-    sectionHeaderHeight: function() {
+    getSectionHeaderHeight: function() {
       return 0;
     },
 
-    fullSectionHeight: function() {
+    getFullSectionHeight: function() {
       var result = this.items.length * itemHeight;
       return result;
     },
 
-    fullSectionLength: function() {
+    getFullSectionLength: function() {
       var result = this.items.length;
       return result;
     },
@@ -65,23 +65,23 @@
       return this.items[index];
     },
 
-    indexAtPosition: function(pos) {
+    getIndexAtPosition: function(pos) {
       return Math.floor(pos / itemHeight);
     },
 
-    positionForIndex: function(index) {
+    getPositionForIndex: function(index) {
       return index * itemHeight;
     },
 
-    fullLength: function() {
+    getFullLength: function() {
       return this.items.length;
     },
 
-    itemHeight: function() {
+    getItemHeight: function() {
       return itemHeight;
     },
 
-    fullHeight: function() {
+    getFullHeight: function() {
       this.items.length * itemHeight;
     },
 

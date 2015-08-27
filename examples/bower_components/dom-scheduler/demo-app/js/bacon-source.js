@@ -53,15 +53,15 @@
       return this.contentMap.keys();
     },
 
-    sectionHeaderHeight: function() {
+    getSectionHeaderHeight: function() {
       return headerHeight;
     },
 
-    fullSectionHeight: function(key) {
+    getFullSectionHeight: function(key) {
       return this.contentMap.get(key).length * itemHeight;
     },
 
-    fullSectionLength: function(key) {
+    getFullSectionLength: function(key) {
       return this.contentMap(key).length;
     },
 
@@ -83,7 +83,7 @@
       }
     },
 
-    indexAtPosition: function(pos) {
+    getIndexAtPosition: function(pos) {
       var index = 0;
       for (var section of this.contentMap.values()) {
         pos -= headerHeight;

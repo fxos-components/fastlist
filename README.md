@@ -19,20 +19,18 @@ var myList = new FastList({
   container: document.querySelector('.my-container'),
 
   /**
-   * A template that will be used for each
-   * list item. A real element will be passed
-   * to populateItem() function to fill.
-   * @type {String}
+   * Should return a unique element to
+   * be used as a list item.
+   * @return {HTMLElement}
    */
-  listTemplate: '<li><h3> </h3><p> </p></li>',
+  createItem: function() {},
 
   /**
-   * A template that will be used for each
-   * section. A real element will be passed
-   * to populateSection() function to fill.
-   * @type {String}
+   * Should return a unique element to
+   * be used as a section.
+   * @return {HTMLElement}
    */
-  sectionTemplate: '<section><h2> </h2></section>',
+  createSection: function() {},
 
   /**
    * Called each time a list item needs rendering.
@@ -61,20 +59,20 @@ var myList = new FastList({
    * Can return 0 is not using sections.
    * @return {Number}
    */
-  sectionHeaderHeight() { ... },
+  getSectionHeaderHeight() { ... },
 
   /**
    * Should return the height of all
    * the items in a section.
    * @return {Number}
    */
-  fullSectionHeight() { ... },
+  getFullSectionHeight() { ... },
 
   /**
    * Should return the total number of sections.
    * @return {Number}
    */
-  fullSectionLength() { ... },
+  getFullSectionLength() { ... },
 
   /**
    * Should return the section data for the item.
@@ -96,7 +94,7 @@ var myList = new FastList({
    * @param  {Number} pos
    * @return {Index}
    */
-  indexAtPosition: function(pos) { ... },
+  getIndexAtPosition: function(pos) { ... },
 
   /**
    * Should return the y-offset of
@@ -104,26 +102,34 @@ var myList = new FastList({
    * @param  {Number} index
    * @return {Number}
    */
-  positionForIndex: function(index) { ... },
+  getPositionForIndex: function(index) { ... },
 
   /**
    * Should return the full list length.
    * @return {Number}
    */
-  fullLength: function() { ... },
+  getFullLength: function() { ... },
 
   /**
    * Should return the item px height.
    * @return {Number}
    */
-  itemHeight: function() { ... },
+  getItemHeight: function() { ... },
 
   /**
    * Should return the full height of the list
    * including all items and section headers.
    * @return {Number}
    */
-  fullHeight: function() { ... },
+  getFullHeight: function() { ... },
+
+  /**
+   * An optional parameter to allow you to
+   * provide the list viewport height in
+   * a more efficient way than .offsetHeight.
+   * @return {Number}
+   */
+  getViewportHeight: function() {},
 
   /**
    * SHould insert the given record into the your
