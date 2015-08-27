@@ -8,10 +8,18 @@
   };
 
   exports.DataSource.prototype = {
-    itemTemplate: '<li><h3> </h3><p> </p><div class="overlay">' +
-      '<div class="cursor"></div></div></li>',
-    sectionTemplate: '<section><h2> </h2><div class="background">' +
-     '</div></section>',
+    createItem: function() {
+      var section = document.createElement('li');
+      section.innerHTML = '<h3> </h3><p> </p><div class="overlay">' +
+      '<div class="cursor"></div></div>';
+      return section;
+    },
+
+    createSection: function() {
+      var section = document.createElement('section');
+      section.innerHTML = '<h2> </h2><div class="background"></div>';
+      return section;
+    },
 
     populateItem: function(item, i) {
       var title = item.querySelector('h3');

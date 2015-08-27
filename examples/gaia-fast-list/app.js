@@ -1,21 +1,16 @@
 'use strict';
 
-var debug = 0 ? (...args) => console.log('[GaiaFastListDemo]', ...args) : ()=>{};
-
+var debug = 0 ? (...args) => console.log('[GaiaFastListDemo]', ...args) : () => {};
 var list = document.querySelector('gaia-fast-list');
 
+// Defining getSectionName creates sections
 list.configure({
-  getSectionName: item => {
-    return item.date;
-  },
-
-  itemKeys: {
-    title: 'title',
-    body: 'metadata.body',
-    image: 'image',
-    link: 'link'
-  },
+  getSectionName: item => item.date
 });
+
+// Setting model for the
+// first time creates the list.
+list.model = [];
 
 var chunkSize = 100;
 var total = 350;
@@ -44,9 +39,8 @@ function getDataAsync(from, limit) {
       for (var i = from; i < to; i++) {
         result.push({
           title: `Title ${i}`,
-          metadata: {
-            body: `Body ${i}`
-          },
+          metadata: { body: `Body ${i}` },
+          image: 'image.jpg',
           date: date
         });
       }

@@ -15,6 +15,7 @@
   "dependencies": {
     "dom-scheduler": "etiennesegonzac/dom-scheduler",
     "gaia-component": "gaia-components/gaia-component#~0.3.8",
-    "gaia-theme": "gaia-components/gaia-theme#~0.5.1"
+    "gaia-theme": "gaia-components/gaia-theme#~0.5.1",
+    "poplar": "wilsonpage/poplar"
   }
 }

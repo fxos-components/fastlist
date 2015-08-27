@@ -1,6 +1,5 @@
 {
   "camelcase": false,
-  "curly": true,
   "forin": false,
   "latedef": "nofunc",
   "newcap": false,

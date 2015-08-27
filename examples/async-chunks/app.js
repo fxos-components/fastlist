@@ -37,8 +37,17 @@
   var myList = new FastList({
     container: document.querySelector('section'),
 
-    itemTemplate: '<li><h3> </h3><p> </p></li>',
-    sectionTemplate: '<section><h2> </h2><div class="background"></div></section>',
+    createItem: function() {
+      var section = document.createElement('li');
+      section.innerHTML = '<h3> </h3><p> </p>';
+      return section;
+    },
+
+    createSection: function() {
+      var section = document.createElement('section');
+      section.innerHTML = '<h2> </h2><div class="background"></div>';
+      return section;
+    },
 
     populateItem: function(el, i) {
       var title = el.firstChild;

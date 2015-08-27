@@ -6,6 +6,7 @@
 
 var component = require('gaia-component');
 var FastList = require('fast-list');
+var poplar = require('poplar');
 
 /**
  * Mini Logger
@@ -33,22 +34,40 @@ module.exports = component.register('gaia-fast-list', {
       _itemHeight: 60,
       _headerHeight: 32
     };
+
+    this.configureTemplates();
+    debug('created', this.userConfig);
+  },
+
+  configureTemplates: function() {
+    var templateHeader = this.querySelector('template[header]');
+    var templateItem = this.querySelector('template[item]');
+    var noTemplates = !templateItem && !templateHeader;
+    var config = this.userConfig;
+
+    // If no exact templates found, use unlabeled <template> for item
+    if (noTemplates) templateItem = this.querySelector('template');
+
+    // Attach template content to the fast-list config
+    if (templateHeader) config.templateHeader = templateHeader.innerHTML;
+    if (templateItem) config.templateItem = templateItem.innerHTML;
   },
 
   _createList: function() {
+    if (this._list) return;
     this._config = new Configuration(this.userConfig);
     this._list = new FastList(this._config);
   },
 
   configure: function(config) {
     Object.assign(this.userConfig, config);
-    this._createList();
   },
 
   attrs: {
     model: {
-      get: function() { return this._config.model; },
+      get: function() { return this._config && this._config.model; },
       set: function(value) {
+        this._createList();
         this._config.setModel(value);
         this._list.reloadData();
       }
@@ -79,7 +98,7 @@ module.exports = component.register('gaia-fast-list', {
         margin: 0;
       }
 
-      ::content h2 {
+      ::content .gfl-header {
         position: sticky;
         position: -webkit-sticky;
         top: 0px;
@@ -108,58 +127,63 @@ module.exports = component.register('gaia-fast-list', {
           var(--border-color) 1px,
           transparent 1px,
           transparent);
+
         background-position: 0 -60px;
         background-size: 100% 60px;
         background-repeat: repeat-y;
       }
 
-      ::content li {
-        -moz-user-select: none;
+      ::content .gfl-item {
         z-index: 10;
 
+        display: flex;
         box-sizing: border-box;
         width: 100%;
         height: 60px;
         padding: 9px 16px;
         border-bottom: solid 1px var(--border-color);
+        align-items: center;
+
         font-size: 18px;
         font-weight: normal;
         font-style: normal;
         list-style-type: none;
         color: var(--text-color);
-      }
-
-      ::content li > a {
-        display: flex;
-        width: 100%;
-        height: 100%;
-        align-items: center;
-        color: inherit;
+        -moz-user-select: none;
         text-decoration: none;
       }
 
-      ::content li > a > .text {
+      ::content .gfl-item .text {
         flex: 1;
       }
 
-      ::content li > a > .image {
+      ::content .gfl-item .image {
         width: 60px;
         height: 60px;
         margin: 0 -16px;
         background: var(--background-minus);
       }
 
-      ::content li > a img {
-        width: 60px;
-        height: 60px;
+      ::content .gfl-item .image.round {
+        width: 42px;
+        height: 42px;
+        margin: 0 -8px;
+        border-radius: 50%;
+        overflow: hidden;
+      }
+
+      ::content .gfl-item .image > img {
+        width: 100%;
+        height: 100%;
       }
 
       ::content h3 {
         margin: 0;
+        overflow: hidden;
+
         font-size: inherit;
         font-weight: 400;
         white-space: nowrap;
-        overflow: hidden;
         text-overflow: ellipsis;
       }
 
@@ -167,11 +191,6 @@ module.exports = component.register('gaia-fast-list', {
         margin: 0;
         font-size: 0.7em;
         line-height: 1.35em;
-      }
-
-      ::content > img {
-        width: 60px;
-        float: right;
       }
     </style>`
 });
@@ -184,6 +203,16 @@ function Configuration(config) {
 }
 
 Configuration.prototype = {
+
+  // Default header template overridden by
+  // <template header> inside <gaia-fast-list>
+  templateHeader: '<h2>${section}</h2>',
+
+  // Default item template overridden by
+  // <template item> inside <gaia-fast-list>
+  templateItem: '<a href="${link}"><div class="text"><h3>${title}</h3>' +
+    '<p>${body}</p></div><div class="image"><img src="${image}"/></div></a>',
+
   setModel: function(model) {
     this.model = model;
     this.sections = this.sectionize(this.model);
@@ -204,57 +233,39 @@ Configuration.prototype = {
     return hash;
   },
 
-  sectionTemplate: '<section><h2> </h2><div class="background"></div></section>',
-  itemTemplate: '<li><a><div class="text"><h3> </h3><p> </p></div><div class="image"><img/></div></a></li>',
+  createItem: function() {
+    var el = poplar(this.templateItem);
+    el.classList.add('gfl-item');
+    return el;
+  },
+
+  createSection: function() {
+    var section = document.createElement('section');
+    var background = document.createElement('div');
+    var header = poplar(this.templateHeader);
+
+    background.classList.add('background');
+    header.classList.add('gfl-header');
+    section.appendChild(header);
+    section.appendChild(background);
+
+    return section;
+  },
 
   populateItem: function(el, i) {
     debug('populate item');
-    var data = this.getRecordAt(i);
-    var els = {};
-
-    els.link = el.firstChild;
-    els.div = els.link.firstChild;
-    els.title = els.div.firstChild;
-    els.body = els.title.nextSibling;
-    els.image = els.div.nextSibling;
-
-    var link = typeof this.itemKeys.link === 'function' ?
-      this.itemKeys.link(data) :
-      getProp(data, this.itemKeys.link);
-
-    var image = typeof this.itemKeys.image === 'function' ?
-      this.itemKeys.image(data) :
-      getProp(data, this.itemKeys.image);
-
-    var title = getProp(data, this.itemKeys.title);
-    var body = getProp(data, this.itemKeys.body);
-
-    els.link.href = link && link;
-    els.title.firstChild.data = title || '';
-    els.body.firstChild.data = body || '';
-
-    if (image) {
-      els.image.style.display = '';
-      els.image.src = image;
-    } else {
-      els.image.style.display = 'none';
-    }
-  },
-
-  itemKeys: {
-    title: 'title',
-    body: 'body',
-    image: 'image',
-    link: 'link'
+    poplar.populate(el, this.getRecordAt(i));
   },
 
   populateSection: function(el, section) {
-    var title = el.firstChild;
-    var height = this.fullSectionHeight(section);
-    var background = title.nextSibling;
+    debug('populate section', section);
 
+    var title = el.firstChild;
+    var background = title.nextSibling;
+    var height = this.fullSectionHeight(section);
+
+    poplar.populate(title, { section: section });
     background.style.height = height + 'px';
-    title.firstChild.data = section;
   },
 
   getSections: function() {
@@ -403,15 +414,6 @@ Configuration.prototype = {
     });
   }
 };
-
-function getProp(object, path) {
-  return path && getDeep(object, path.split('.'));
-}
-
-function getDeep(item, parts) {
-  var part = parts.shift();
-  return parts.length ? getDeep(item[part], parts) : item[part];
-}
 
 });})(typeof define=='function'&&define.amd?define
 :(function(n,w){'use strict';return typeof module=='object'?function(c){

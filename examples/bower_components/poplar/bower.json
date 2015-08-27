@@ -1,15 +1,14 @@
 {
-  "name": "gaia-component",
-  "version": "0.3.8",
+  "name": "poplar",
+  "main": "poplar.js",
+  "version": "0.0.0",
+  "homepage": "https://github.com/wilsonpage/poplar",
   "authors": [
     "Wilson Page <wilsonpage@me.com>"
   ],
-  "main": "gaia-component.js",
   "license": "MIT",
   "ignore": [
     "**/.*",
-    "README.md",
-    "package.json",
     "node_modules",
     "bower_components",
     "test",
