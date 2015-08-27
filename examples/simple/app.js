@@ -34,7 +34,7 @@ var list = new FastList({
 
   populateSection: function(el, section, i) {
     var title = el.firstChild;
-    var height = this.fullSectionHeight(section);
+    var height = this.getFullSectionHeight(section);
     var background = title.nextSibling;
 
     background.style.height = height + 'px';
@@ -46,17 +46,17 @@ var list = new FastList({
     return [];
   },
 
-  sectionHeaderHeight() {
+  getSectionHeaderHeight() {
     return 0;
   },
 
-  fullSectionHeight() {
+  getFullSectionHeight() {
     var result = data.length * itemHeight;
     debug('full section height', result);
     return result;
   },
 
-  fullSectionLength() {
+  getFullSectionLength() {
     var result = data.length;
     debug('full section length', result);
     return result;
@@ -70,23 +70,23 @@ var list = new FastList({
     return data[index];
   },
 
-  indexAtPosition: function(pos) {
+  getIndexAtPosition: function(pos) {
     return Math.floor(pos / itemHeight);
   },
 
-  positionForIndex: function(index) {
+  getPositionForIndex: function(index) {
     return index * itemHeight;
   },
 
-  fullLength: function() {
+  getFullLength: function() {
     return data.length;
   },
 
-  itemHeight: function() {
+  getItemHeight: function() {
     return itemHeight;
   },
 
-  fullHeight: function() {
+  getFullHeight: function() {
     return data.length * itemHeight;
   },
 

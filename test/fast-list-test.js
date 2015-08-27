@@ -69,7 +69,7 @@ suite('FastList >', function() {
       assert.include(item.textContent, expectedContent.body);
 
       // Position
-      var expectedPosition = source.positionForIndex(index);
+      var expectedPosition = source.getPositionForIndex(index);
       assert.equal(item.style.transform,
                    'translate3d(0px, ' + expectedPosition + 'px, 0px)');
     }
@@ -112,6 +112,14 @@ suite('FastList >', function() {
     suite('> after a scheduler mutation flush', function() {
       setup(function() {
         scheduler.mutation.yield();
+      });
+
+      test('it calls source.getViewportHeight() if provided', function() {
+        source.getViewportHeight = sinon.stub();
+        source.getViewportHeight.returns(400);
+        fastList = new FastList(source);
+        scheduler.mutation.yield();
+        sinon.assert.called(source.getViewportHeight);
       });
 
       test('it sets the required styles on the list items', function() {

@@ -11,65 +11,62 @@ var poplar = require('poplar');
 /**
  * Mini Logger
  */
-
 var debug = 0 ? (...args) => console.log('[GaiaFastList]', ...args) : ()=>{};
 
 /**
- * Exports
+ * Used to hide private poperties behind.
+ * @type {Symbol}
  */
+var internal = Symbol();
 
-module.exports = component.register('gaia-fast-list', {
+/**
+ * Public prototype.
+ * @type {Object}
+ */
+var GaiaFastListProto = {
+  extensible: false,
+
   created: function() {
     this.setupShadowRoot();
-
-    this.els = {
-      fastList: this.shadowRoot.querySelector('.fast-list'),
-      ul: this.shadowRoot.querySelector('ul')
-    };
-
-    this.userConfig = {
-      container: this.els.fastList,
-      list: this.els.ul,
-      itemContainer: this,
-      _itemHeight: 60,
-      _headerHeight: 32
-    };
-
-    this.configureTemplates();
-    debug('created', this.userConfig);
+    this.top = this.getAttribute('top');
+    this.bottom = this.getAttribute('bottom');
+    this[internal] = new Internal(this);
+    debug('created');
   },
 
-  configureTemplates: function() {
-    var templateHeader = this.querySelector('template[header]');
-    var templateItem = this.querySelector('template[item]');
-    var noTemplates = !templateItem && !templateHeader;
-    var config = this.userConfig;
-
-    // If no exact templates found, use unlabeled <template> for item
-    if (noTemplates) templateItem = this.querySelector('template');
-
-    // Attach template content to the fast-list config
-    if (templateHeader) config.templateHeader = templateHeader.innerHTML;
-    if (templateItem) config.templateItem = templateItem.innerHTML;
-  },
-
-  _createList: function() {
-    if (this._list) return;
-    this._config = new Configuration(this.userConfig);
-    this._list = new FastList(this._config);
-  },
-
-  configure: function(config) {
-    Object.assign(this.userConfig, config);
+  configure: function(props) {
+    this[internal].configure(props);
   },
 
   attrs: {
     model: {
-      get: function() { return this._config && this._config.model; },
+      get: function() { return this[internal].model; },
       set: function(value) {
-        this._createList();
-        this._config.setModel(value);
-        this._list.reloadData();
+        this[internal].setModel(value);
+      }
+    },
+
+    top: {
+      get: function() { return this._top; },
+      set: function(value) {
+        debug('set top', value);
+        if (value == null) return;
+        value = Number(value);
+        if (value === this._top) return;
+        this.setAttribute('top', value);
+        this._top = value;
+      }
+    },
+
+    bottom: {
+      get: function() { return this._bottom; },
+      set: function(value) {
+        debug('set bottom', value);
+        if (value == null) return;
+        value = Number(value);
+        if (value === this._bottom) return;
+        this.setAttribute('bottom', value);
+        this._bottom = value;
       }
     }
   },
@@ -120,17 +117,6 @@ module.exports = component.register('gaia-fast-list', {
         position: absolute;
         z-index: 0;
         width: 100%;
-
-        background: linear-gradient(
-          to top,
-          var(--border-color),
-          var(--border-color) 1px,
-          transparent 1px,
-          transparent);
-
-        background-position: 0 -60px;
-        background-size: 100% 60px;
-        background-repeat: repeat-y;
       }
 
       ::content .gfl-item {
@@ -149,12 +135,14 @@ module.exports = component.register('gaia-fast-list', {
         font-style: normal;
         list-style-type: none;
         color: var(--text-color);
+        background: var(--background);
         -moz-user-select: none;
         text-decoration: none;
       }
 
       ::content .gfl-item .text {
         flex: 1;
+        background: var(--background);
       }
 
       ::content .gfl-item .image {
@@ -185,45 +173,49 @@ module.exports = component.register('gaia-fast-list', {
         font-weight: 400;
         white-space: nowrap;
         text-overflow: ellipsis;
+        background: var(--background);
       }
 
       ::content p {
         margin: 0;
         font-size: 0.7em;
         line-height: 1.35em;
+        background: var(--background);
       }
     </style>`
-});
+};
 
-function Configuration(config) {
-  Object.assign(this, config);
-  this.container = config.container;
-  this.setModel(config.model || []);
+/**
+ * Private internals.
+ * @param {GaiaFastList} el
+ */
+function Internal(el) {
+  this.container = el.shadowRoot.querySelector('.fast-list');
+  this.list = el.shadowRoot.querySelector('ul');
+  this.itemContainer = el;
+  this.el = el;
+
+  this.configureTemplates();
   debug('config init', this);
 }
 
-Configuration.prototype = {
-
-  // Default header template overridden by
-  // <template header> inside <gaia-fast-list>
-  templateHeader: '<h2>${section}</h2>',
-
-  // Default item template overridden by
-  // <template item> inside <gaia-fast-list>
-  templateItem: '<a href="${link}"><div class="text"><h3>${title}</h3>' +
-    '<p>${body}</p></div><div class="image"><img src="${image}"/></div></a>',
+Internal.prototype = {
+  headerHeight: 32,
+  itemHeight: 60,
 
   setModel: function(model) {
+    if (!model) return;
     this.model = model;
-    this.sections = this.sectionize(this.model);
+    this.sections = this.sectionize(model);
+    if (!this.fastList) this.createList();
+    else this.fastList.reloadData();
   },
 
-  sectionize: function(data) {
+  sectionize: function(items) {
     var hash = {};
-
     if (!this.getSectionName) { return hash; }
 
-    data.forEach(item => {
+    items.forEach(item => {
       var section = this.getSectionName(item);
       if (!section) { return; }
       if (!hash[section]) { hash[section] = []; }
@@ -233,16 +225,40 @@ Configuration.prototype = {
     return hash;
   },
 
+  createList: function() {
+    this.fastList = new FastList(this);
+  },
+
+  configure: function(props) {
+    Object.assign(this, props);
+  },
+
+  configureTemplates: function() {
+    var templateHeader = this.el.querySelector('template[header]');
+    var templateItem = this.el.querySelector('template[item]');
+    var noTemplates = !templateItem && !templateHeader;
+
+    // If no exact templates found, use unlabeled <template> for item
+    if (noTemplates) templateItem = this.el.querySelector('template');
+
+    // Attach template content to the fast-list config
+    if (templateHeader) this.templateHeader = templateHeader.innerHTML;
+    if (templateItem) this.templateItem = templateItem.innerHTML;
+  },
+
   createItem: function() {
-    var el = poplar(this.templateItem);
+    this.parsedItem = this.parsedItem || poplar.parse(this.templateItem);
+    var el = poplar.create(this.parsedItem.cloneNode(true));
     el.classList.add('gfl-item');
     return el;
   },
 
   createSection: function() {
+    this.parsedSection = this.parsedSection || poplar.parse(this.templateHeader);
+    var header = poplar.create(this.parsedSection.cloneNode(true));
+
     var section = document.createElement('section');
     var background = document.createElement('div');
-    var header = poplar(this.templateHeader);
 
     background.classList.add('background');
     header.classList.add('gfl-header');
@@ -253,19 +269,26 @@ Configuration.prototype = {
   },
 
   populateItem: function(el, i) {
-    debug('populate item');
     poplar.populate(el, this.getRecordAt(i));
   },
 
   populateSection: function(el, section) {
-    debug('populate section', section);
-
     var title = el.firstChild;
     var background = title.nextSibling;
-    var height = this.fullSectionHeight(section);
+    var height = this.getFullSectionHeight(section);
 
     poplar.populate(title, { section: section });
     background.style.height = height + 'px';
+  },
+
+  getViewportHeight: function() {
+    debug('get viewport height');
+    var bottom = this.el.bottom;
+    var top = this.el.top;
+
+    return (top != null && bottom != null)
+      ? window.innerHeight - top - bottom
+      : this.el.offsetHeight;
   },
 
   getSections: function() {
@@ -276,15 +299,15 @@ Configuration.prototype = {
     return !!this.getSections().length;
   },
 
-  sectionHeaderHeight: function() {
-    return this.hasSections() ? this._headerHeight : 0;
+  getSectionHeaderHeight: function() {
+    return this.hasSections() ? this.headerHeight : 0;
   },
 
-  fullSectionHeight: function(key) {
-    return this.sections[key].length * this.itemHeight();
+  getFullSectionHeight: function(key) {
+    return this.sections[key].length * this.getItemHeight();
   },
 
-  fullSectionLength: function(key) {
+  getFullSectionLength: function(key) {
     return this.sections[key].length;
   },
 
@@ -292,10 +315,12 @@ Configuration.prototype = {
     return this.model[index];
   },
 
+  // overwrite to create sections
+  getSectionName: function() {},
+
   getSectionFor: function(index) {
     var item = this.getRecordAt(index);
-    var section = this.getSectionName && this.getSectionName(item);
-    return section;
+    return this.getSectionName(item);
   },
 
   eachSection: function(fn) {
@@ -312,22 +337,24 @@ Configuration.prototype = {
     }
   },
 
-  indexAtPosition: function(pos) {
-    debug('index at position', pos);
-    var headerHeight = this.sectionHeaderHeight();
-    var itemHeight = this.itemHeight();
-    var fullLength = this.fullLength();
+  getIndexAtPosition: function(pos) {
+    debug('get index at position', pos);
+    var headerHeight = this.getSectionHeaderHeight();
+    var itemHeight = this.getItemHeight();
+    var fullLength = this.getFullLength();
     var index = 0;
 
-    this.eachSection(function(key, items) {
-      pos -= headerHeight;
+    for (var name in this.sections) {
+      var items = this.sections[name];
       var sectionHeight = items.length * itemHeight;
+
+      pos -= headerHeight;
 
       // If not in this section, jump to next
       if (pos > sectionHeight) {
         pos -= sectionHeight;
         index += items.length;
-        return;
+        continue;
       }
 
       // Each item in section
@@ -335,50 +362,52 @@ Configuration.prototype = {
         pos -= itemHeight;
 
         if (pos <= 0 || index === fullLength - 1) {
-          return index; // found it!
+          break; // found it!
         } else {
           index++; // continue
         }
       }
-    });
+    }
 
     debug('got index', index);
     return index;
   },
 
-  positionForIndex: function(index) {
-    debug('position for index', index);
-    var headerHeight = this.sectionHeaderHeight();
-    var itemHeight = this.itemHeight();
+  getPositionForIndex: function(index) {
+    debug('get position for index', index);
+    var headerHeight = this.getSectionHeaderHeight();
+    var itemHeight = this.getItemHeight();
+    var sections = this.sections;
     var top = 0;
 
-    this.eachSection(function(key, items) {
+    for (var name in sections) {
+      var items = sections[name];
       top += headerHeight;
 
       if (index < items.length) {
         top += index * itemHeight;
-        return top;
+        break;
       }
 
       index -= items.length;
       top += items.length * itemHeight;
-    });
+    }
 
     debug('got position', top);
     return top;
   },
 
-  fullLength: function() {
+  getFullLength: function() {
     return this.model.length;
   },
 
-  itemHeight: function() {
-    return this._itemHeight;
+  getItemHeight: function() {
+    return this.itemHeight;
   },
 
-  fullHeight: function() {
-    var headers = this.getSections().length * this.sectionHeaderHeight();
-    var items = this.fullLength() * this.itemHeight();
+  getFullHeight: function() {
+    var headers = this.getSections().length * this.getSectionHeaderHeight();
+    var items = this.getFullLength() * this.getItemHeight();
     return headers + items;
   },
 
@@ -412,8 +441,23 @@ Configuration.prototype = {
 
       index -= items.length;
     });
-  }
+  },
+
+  // Default header template overridden by
+  // <template header> inside <gaia-fast-list>
+  templateHeader: '<h2>${section}</h2>',
+
+  // Default item template overridden by
+  // <template item> inside <gaia-fast-list>
+  templateItem: '<a href="${link}"><div class="text"><h3>${title}</h3>' +
+    '<p>${body}</p></div><div class="image"><img src="${image}"/></div></a>'
 };
+
+/**
+ * Exports
+ */
+
+module.exports = component.register('gaia-fast-list', GaiaFastListProto);
 
 });})(typeof define=='function'&&define.amd?define
 :(function(n,w){'use strict';return typeof module=='object'?function(c){

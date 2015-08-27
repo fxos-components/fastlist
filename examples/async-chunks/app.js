@@ -61,7 +61,7 @@
     populateSection: function(el, section, i) {
       debug('populate section', section);
       var title = el.firstChild;
-      var height = this.fullSectionHeight(section);
+      var height = this.getFullSectionHeight(section);
       var background = title.nextSibling;
 
       background.style.height = height + 'px';
@@ -79,12 +79,12 @@
       return Object.keys(this.sections);
     },
 
-    sectionHeaderHeight: function() {
+    getSectionHeaderHeight: function() {
       return 32;
     },
 
-    fullSectionHeight: function(key) {
-      return this.sections[key].length * this.itemHeight();
+    getFullSectionHeight: function(key) {
+      return this.sections[key].length * this.getItemHeight();
     },
 
     getSectionFor: function(index) {
@@ -95,12 +95,12 @@
       return model[index];
     },
 
-    indexAtPosition: function(pos) {
+    getIndexAtPosition: function(pos) {
       var index = 0;
 
       for (var key in this.sections) {
-        pos -= this.sectionHeaderHeight();
-        var sectionHeight = this.sections[key].length * this.itemHeight();
+        pos -= this.getSectionHeaderHeight();
+        var sectionHeight = this.sections[key].length * this.getItemHeight();
 
         if (pos > sectionHeight) {
           pos -= sectionHeight;
@@ -111,18 +111,18 @@
         for (var i = 0; i < this.sections[key].length; i++) {
           pos -= itemHeight;
           index++;
-          if (pos <= 0 || index === this.fullLength() - 1) {
+          if (pos <= 0 || index === this.getFullLength() - 1) {
             return index;
           }
         }
       }
     },
 
-    positionForIndex: function(index) {
+    getPositionForIndex: function(index) {
       var top = 0;
 
       for (var key in this.sections) {
-        top += this.sectionHeaderHeight();
+        top += this.getSectionHeaderHeight();
 
         if (index < this.sections[key].length) {
           top += index * itemHeight;
@@ -134,18 +134,18 @@
       }
     },
 
-    fullLength: function() {
+    getFullLength: function() {
       return model.length;
     },
 
-    itemHeight: function() {
+    getItemHeight: function() {
       return itemHeight;
     },
 
-    fullHeight: function() {
+    getFullHeight: function() {
       var height = 0;
       for (var key in this.sections) {
-        height += this.sectionHeaderHeight() + this.sections[key].length * itemHeight;
+        height += this.getSectionHeaderHeight() + this.sections[key].length * itemHeight;
       }
       return height;
     },

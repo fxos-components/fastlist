@@ -2,8 +2,17 @@
 /*jshint esnext:true*/
 
 var debug = 0 ? console.log.bind(console, '[poplar]') : function() {};
+
+/**
+ * Stores references to Poplar elements.
+ * @type {WeakMap}
+ */
 var elements = new WeakMap();
 
+/**
+ * Regexs used to parse HTML.
+ * @type {Object}
+ */
 var regex = {
   content: />([^<]+)</g,
   var: /\$\{([^\}]+)\}/g,
@@ -21,11 +30,29 @@ module.exports = poplar;
  * Create a poplar element
  * from an HTML string.
  *
+ * @example
+ *
+ * var el = poplar('<h1>Hello ${name}</h1>');
+ * poplar.populate(el, { name: 'Wilson' });
+ * el.textContent; //=> 'Hello Wilson'
+ *
  * @param  {String} html
  * @return {HTMLElement}
  */
 function poplar(html) {
-  debug('poplar', html);
+  return poplar.create(poplar.parse(html));
+}
+
+/**
+ * Parse an HTML string and return
+ * a formatted element that can
+ * be passed to .create().
+ *
+ * @param  {String} html
+ * @return {HTMLElement}
+ */
+poplar.parse = function(html) {
+  debug('parse', html);
 
   var formatted = html
     .replace(/\n/g, '')
@@ -54,7 +81,20 @@ function poplar(html) {
       });
     });
 
-  var parent = rocify(elementify(formatted));
+  return rocify(elementify(formatted));
+};
+
+/**
+ * Turns a formatted element into a final
+ * Poplar element that can we passed
+ * to .poplate() to fill with data.
+ *
+ * @param  {HTMLElement} parent
+ * @return {HTMLElement}
+ */
+poplar.create = function(parent) {
+  debug('create');
+
   var el = parent.firstElementChild;
 
   elements.set(el, {
@@ -63,7 +103,7 @@ function poplar(html) {
   });
 
   return el;
-}
+};
 
 /**
  * Populate the element with data.

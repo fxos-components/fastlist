@@ -12,6 +12,7 @@
   "strict": true,
   "trailing": true,
   "maxlen": 80,
+  "laxbreak": true,
 
   "eqnull": true,
   "expr": true,

@@ -56,7 +56,7 @@
 
     populateSection: function(el, section, i) {
       var title = el.firstChild;
-      var height = this.fullSectionHeight(section);
+      var height = this.getFullSectionHeight(section);
       var background = title.nextSibling;
 
       background.style.height = height + 'px';
@@ -71,15 +71,15 @@
       return sections;
     },
 
-    sectionHeaderHeight: function() {
+    getSectionHeaderHeight: function() {
       return headerHeight;
     },
 
-    fullSectionHeight: function(key) {
+    getFullSectionHeight: function(key) {
       return this.contentMap.get(key).length * itemHeight;
     },
 
-    fullSectionLength: function(key) {
+    getFullSectionLength: function(key) {
       return this.contentMap(key).length;
     },
 
@@ -101,7 +101,7 @@
       }
     },
 
-    indexAtPosition: function(pos) {
+    getIndexAtPosition: function(pos) {
       var index = 0;
       for (var section of this.contentMap.values()) {
         pos -= headerHeight;
@@ -114,14 +114,14 @@
         for (var item of section) {
           pos -= itemHeight;
           index++;
-          if (pos <= 0 || index === this.fullLength() - 1) {
+          if (pos <= 0 || index === this.getFullLength() - 1) {
             return index;
           }
         }
       }
     },
 
-    positionForIndex: function(index) {
+    getPositionForIndex: function(index) {
       var top = 0;
       for (var section of this.contentMap.values()) {
         top += headerHeight;
@@ -134,7 +134,7 @@
       }
     },
 
-    fullLength: function() {
+    getFullLength: function() {
       if (this._cachedLength) {
         return this._cachedLength;
       }
@@ -147,11 +147,11 @@
       return length;
     },
 
-    itemHeight: function() {
+    getItemHeight: function() {
       return itemHeight;
     },
 
-    fullHeight: function() {
+    getFullHeight: function() {
       var height = 0;
       for (var section of this.contentMap.values()) {
         height += headerHeight + section.length * itemHeight;
