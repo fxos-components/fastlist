@@ -97,11 +97,18 @@ suite('FastList >', function() {
 
     setup(function() {
       fastList = new FastList(source);
+      this.sinon = sinon.sandbox.create();
+      this.sinon.useFakeTimers();
+    });
+
+    teardown(function() {
+      this.sinon.clock.restore();
+      this.sinon.restore();
     });
 
     test('it sets the required styles on the container', function() {
       assert.equal(container.style.overflowX, 'hidden');
-      assert.equal(container.style.overflowY, 'scroll');
+      assert.equal(container.style.overflowY, 'hidden');
     });
 
     test('it attaches a direct block to the scroll event', function() {
@@ -130,8 +137,34 @@ suite('FastList >', function() {
           assert.equal(item.style.left, '0px');
           assert.equal(item.style.top, '0px');
           assert.equal(item.style.overflow, 'hidden');
-          assert.equal(item.style.willChange, 'transform');
+
+          // will-change should be deferred
+          assert.equal(item.style.willChange, '');
         }
+      });
+
+      suite('> once everything settles down', function() {
+        setup(function() {
+          this.sinon.clock.tick(360);
+        });
+
+        suite('> after a scheduler mutation flush', function() {
+          setup(function() {
+            scheduler.mutation.yield();
+          });
+
+          test('it enables scrolling', function() {
+            assert.equal(container.style.overflowY, 'scroll');
+          });
+
+          test('it turns willChange on', function() {
+            var items = container.querySelectorAll('ul li');
+            for (var i = 0; i < items.length; i++) {
+              var item = items[i];
+              assert.equal(item.style.willChange, 'transform');
+            }
+          });
+        });
       });
 
       test('it renders the section headers', function() {
