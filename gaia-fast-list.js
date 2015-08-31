@@ -43,6 +43,13 @@ var GaiaFastListProto = {
     this[internal].configure(props);
   },
 
+  complete: function() {
+    if (!this.caching) return;
+
+    this[internal].cachedHeight = null;
+    this[internal].updateCachedHeight();
+  },
+
   attrs: {
     model: {
       get: function() { return this[internal].model; },
@@ -533,6 +540,9 @@ Internal.prototype = {
   },
 
   getFullHeight: function() {
+    var height = this.cachedHeight;
+    if (height != null) return height;
+
     var headers = this.getSections().length * this.getSectionHeaderHeight();
     var items = this.getFullLength() * this.getItemHeight();
     return headers + items + this.el.offset;
@@ -574,6 +584,10 @@ Internal.prototype = {
     return `${this.el.tagName}:${this.el.id}:${location}`;
   },
 
+  getCachedHeightKey: function() {
+    return `${this.el.tagName}:${this.el.id}:${location}:height`;
+  },
+
   /**
    * Gets the currently rendered list-item and section
    * HTML and then persists it to localStorage later
@@ -595,9 +609,26 @@ Internal.prototype = {
     }, 500);
   },
 
+  updateCachedHeight: function() {
+    if (!this.el.caching) return;
+    var height = this.getFullHeight();
+
+    setTimeout(() => {
+      scheduler.mutation(() => {
+        localStorage.setItem(this.getCachedHeightKey(), height);
+      });
+    }, 500);
+  },
+
   injectItemsFromCache: function() {
     if (!this.el.caching) return;
     debug('injecting items from cache');
+
+    var height = localStorage.getItem(this.getCachedHeightKey());
+    if (height) {
+      this.cachedHeight = height;
+    }
+
     var html = localStorage.getItem(this.getCacheKey());
     if (html) {
       this.el.insertAdjacentHTML('beforeend', html);
