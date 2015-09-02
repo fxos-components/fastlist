@@ -55,14 +55,14 @@ poplar.parse = function(html) {
   debug('parse', html);
 
   var formatted = html
-    .replace(/\n/g, '')
+    .replace(/\s*\n\s*/g, '')
     .replace(/  +/g, '')
 
     // attribute bindings
     .replace(regex.attrs, function(match, start, content, end) {
       var dynamic = [];
       var simple = content.replace(regex.attr, function(match, name, prop) {
-        dynamic.push(`${name}=${encodeURIComponent(prop)}`);
+        dynamic.push(name + '=' + encodeURIComponent(prop));
         return '';
       });
 
@@ -70,7 +70,9 @@ poplar.parse = function(html) {
       if (!dynamic.length) return match;
 
       var dataBindAttrs = dynamic.join(' ');
-      var tag = `${start}${simple} data-poplar-attrs="${dataBindAttrs}"${end}`;
+      var tag = start +
+        simple + ' data-poplar-attrs="' + dataBindAttrs + '"' +
+        end;
       return tag.replace(/  +/g, ' ');
     })
 
@@ -81,7 +83,7 @@ poplar.parse = function(html) {
       });
     });
 
-  return rocify(elementify(formatted));
+  return elementify(formatted);
 };
 
 /**
@@ -116,6 +118,11 @@ poplar.populate = function(el, data) {
   debug('poplate', el, data);
 
   var bindings = elements.get(el);
+  if (!bindings) {
+    debug('unknown element');
+    return false;
+  }
+
   var textNodes = bindings.textNodes;
   var attrs = bindings.attrs;
   var i = textNodes.length;
@@ -139,6 +146,9 @@ poplar.populate = function(el, data) {
 
     item.el.setAttribute(item.name, value);
   }
+
+  debug('populated');
+  return true;
 };
 
 /**
@@ -277,31 +287,6 @@ function getProp(object, path) {
     var part = parts.shift();
     return parts.length ? getDeep(object[part], parts) : object[part];
   })(object, parts);
-}
-
-/**
- * Removes empty text nodes recursively
- * to optimize rendering performance.
- *
- * @param  {HTMLElement} el
- */
-function rocify(el) {
-  if (el.childNodes.length === 0) return el;
-  var i = el.childNodes.length;
-
-  // Will remove elements while iterating
-  while (i--) {
-    var child = el.childNodes[i];
-
-    if (!child.tagName && !child.data.replace(/\s/g, '').length) {
-      child.remove();
-      continue;
-    }
-
-    rocify(child);
-  }
-
-  return el;
 }
 
 });})(typeof define=='function'&&define.amd?define

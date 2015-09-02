@@ -4,7 +4,7 @@
 suite('FastList >', function() {
   'use strict';
 
-  var fakeDoc, container, source;
+  var fakeDoc, container, source, fastList;
 
   function createDummyData(count) {
     var result = [];
@@ -158,6 +158,31 @@ suite('FastList >', function() {
     });
   });
 
+  test('it accepts prexisting list items', function() {
+    source.items = [];
+
+    var list = document.createElement('ul');
+    container.appendChild(list);
+
+    while (source.items.length < 21) {
+      var item = source.createItem(1);
+      item.className = 'prexisting';
+      item.style.position = 'absolute';
+      item.style.left = '0px';
+      item.style.top = '0px';
+      item.style.overflow = 'hidden';
+      item.style.willChange = 'transform';
+      list.appendChild(item);
+      source.items.push(item);
+    }
+
+    var createItem = sinon.spy(source, 'createItem');
+    fastList = new FastList(source);
+    scheduler.mutation.yield();
+
+    sinon.assert.notCalled(createItem);
+  });
+
   suite('Scrolling >', function() {
     var fastList;
 
@@ -265,8 +290,8 @@ suite('FastList >', function() {
       container.scrollTop = 1200;
       scheduler.attachDirect.yield();
 
-      source.items[16].title = 'Totally new title';
-      source.items.push({
+      source.data[16].title = 'Totally new title';
+      source.data.push({
         title: 'Totally new title',
         body: 'Totally new body'
       });

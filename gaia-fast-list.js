@@ -27,14 +27,17 @@ var GaiaFastListProto = {
   extensible: false,
 
   created: function() {
+    debug('create');
     this.setupShadowRoot();
     this.top = this.getAttribute('top');
     this.bottom = this.getAttribute('bottom');
+    this.caching = this.getAttribute('caching');
     this[internal] = new Internal(this);
     debug('created');
   },
 
   configure: function(props) {
+    debug('configure');
     this[internal].configure(props);
   },
 
@@ -68,6 +71,17 @@ var GaiaFastListProto = {
         this.setAttribute('bottom', value);
         this._bottom = value;
       }
+    },
+
+    caching: {
+      get() { return this._caching; },
+      set(value) {
+        value = value || value === '';
+        if (value === this._caching) return;
+        if (value) this.setAttribute('caching', '');
+        else this.removeAttribute('caching');
+        this._caching = value;
+      }
     }
   },
 
@@ -82,17 +96,45 @@ var GaiaFastListProto = {
       :host {
         display: block;
         height: 100%;
+        overflow: hidden;
       }
 
       .fast-list {
+        position: absolute;
+        left: 0; top: 0;
         height: 100%;
-        position: relative;
+        width: 100%;
+        overflow: hidden;
+      }
+
+      .fast-list.empty {
+        background: repeating-linear-gradient(
+          0deg,
+          var(--background) 0px,
+          var(--background) 59px,
+          var(--border-color) 60px,
+          var(--border-color) 60px);
+        background-position: 0 1px;
       }
 
       .fast-list ul {
         list-style: none;
         padding: 0;
         margin: 0;
+      }
+
+      .fast-list.empty:before {
+        content: '';
+        position: sticky;
+        position: -webkit-sticky;
+        top: 0px;
+        height: 32px;
+        z-index: 100;
+
+        display: block;
+
+        background: var(--background-plus);
+        color: var(--title-color);
       }
 
       ::content .gfl-header {
@@ -138,6 +180,11 @@ var GaiaFastListProto = {
         background: var(--background);
         -moz-user-select: none;
         text-decoration: none;
+        will-change: initial !important;
+      }
+
+      :host(.layerize) ::content .gfl-item {
+        will-change: transform !important;
       }
 
       ::content .gfl-item .text {
@@ -190,12 +237,13 @@ var GaiaFastListProto = {
  * @param {GaiaFastList} el
  */
 function Internal(el) {
+  this.el = el;
+  this.items = this.injectItemsFromCache();
   this.container = el.shadowRoot.querySelector('.fast-list');
   this.list = el.shadowRoot.querySelector('ul');
   this.itemContainer = el;
-  this.el = el;
-
   this.configureTemplates();
+  this.setEmpty(!this.cacheRendered);
   debug('config init', this);
 }
 
@@ -204,29 +252,39 @@ Internal.prototype = {
   itemHeight: 60,
 
   setModel: function(model) {
+    debug('set model', model);
     if (!model) return;
     this.model = model;
     this.sections = this.sectionize(model);
     if (!this.fastList) this.createList();
     else this.fastList.reloadData();
+    this.setEmpty(false);
+  },
+
+  setEmpty: function(value) {
+    this.container.classList.toggle('empty', value);
   },
 
   sectionize: function(items) {
     var hash = {};
+
     if (!this.getSectionName) { return hash; }
 
-    items.forEach(item => {
-      var section = this.getSectionName(item);
+    for (var i = 0, l = items.length; i < l; i++) {
+      var section = this.getSectionName(items[i]);
       if (!section) { return; }
       if (!hash[section]) { hash[section] = []; }
-      hash[section].push(item);
-    });
+      hash[section].push(items[i]);
+    }
 
     return hash;
   },
 
   createList: function() {
+    debug('create list');
     this.fastList = new FastList(this);
+    this.el.classList.add('layerize');
+    this.updateCache();
   },
 
   configure: function(props) {
@@ -241,12 +299,19 @@ Internal.prototype = {
     // If no exact templates found, use unlabeled <template> for item
     if (noTemplates) templateItem = this.el.querySelector('template');
 
-    // Attach template content to the fast-list config
-    if (templateHeader) this.templateHeader = templateHeader.innerHTML;
-    if (templateItem) this.templateItem = templateItem.innerHTML;
+    if (templateHeader) {
+      this.templateHeader = templateHeader.innerHTML;
+      templateHeader.remove();
+    }
+
+    if (templateItem) {
+      this.templateItem = templateItem.innerHTML;
+      templateItem.remove();
+    }
   },
 
   createItem: function() {
+    debug('create item');
     this.parsedItem = this.parsedItem || poplar.parse(this.templateItem);
     var el = poplar.create(this.parsedItem.cloneNode(true));
     el.classList.add('gfl-item');
@@ -264,12 +329,32 @@ Internal.prototype = {
     header.classList.add('gfl-header');
     section.appendChild(header);
     section.appendChild(background);
+    section.classList.add('gfl-section');
 
     return section;
   },
 
+  /**
+   * Populates a list-item with data.
+   *
+   * If items were inflated from the HTML cache
+   * they won't yet be poplar elements; in
+   * which case we have to replace them
+   * before we can populate them with data.
+   *
+   * @param  {HTMLElement} el
+   * @param  {Number} i
+   */
   populateItem: function(el, i) {
-    poplar.populate(el, this.getRecordAt(i));
+    var record = this.getRecordAt(i);
+    var successful = poplar.populate(el, record);
+
+    if (!successful) {
+      debug('not a poplar element');
+      var replacement = this.fastList.createItem();
+      this.fastList.replaceChild(replacement, el);
+      this.populateItem(replacement, i);
+    }
   },
 
   populateSection: function(el, section) {
@@ -316,6 +401,11 @@ Internal.prototype = {
   },
 
   // overwrite to create sections
+  // IDEA: We could accept an Object
+  // as a model and use the keys as
+  // section names. This would probably
+  // require the user do some additional
+  // formatting before setting the model.
   getSectionName: function() {},
 
   getSectionFor: function(index) {
@@ -338,7 +428,7 @@ Internal.prototype = {
   },
 
   getIndexAtPosition: function(pos) {
-    debug('get index at position', pos);
+    // debug('get index at position', pos);
     var headerHeight = this.getSectionHeaderHeight();
     var itemHeight = this.getItemHeight();
     var fullLength = this.getFullLength();
@@ -369,12 +459,12 @@ Internal.prototype = {
       }
     }
 
-    debug('got index', index);
+    // debug('got index', index);
     return index;
   },
 
   getPositionForIndex: function(index) {
-    debug('get position for index', index);
+    // debug('get position for index', index);
     var headerHeight = this.getSectionHeaderHeight();
     var itemHeight = this.getItemHeight();
     var sections = this.sections;
@@ -393,7 +483,7 @@ Internal.prototype = {
       top += items.length * itemHeight;
     }
 
-    debug('got position', top);
+    // debug('got position', top);
     return top;
   },
 
@@ -441,6 +531,42 @@ Internal.prototype = {
 
       index -= items.length;
     });
+  },
+
+  getCacheKey: function() {
+    return `${this.el.tagName}:${this.el.id}:${location}`;
+  },
+
+  /**
+   * Gets the currently rendered list-item and section
+   * HTML and then persists it to localStorage later
+   * in time to prevent blocking the remaining
+   * fast-list setup.
+   *
+   * The scheduler.mutation() block means that
+   * it won't interupt user scrolling.
+   */
+  updateCache: function() {
+    if (!this.el.caching) return;
+    var items = this.el.querySelectorAll('.gfl-item, .gfl-section');
+    var html = [].map.call(items, el => el.outerHTML).join('');
+
+    setTimeout(() => {
+      scheduler.mutation(() => {
+        localStorage.setItem(this.getCacheKey(), html);
+      });
+    }, 500);
+  },
+
+  injectItemsFromCache: function() {
+    if (!this.el.caching) return;
+    debug('injecting items from cache');
+    var html = localStorage.getItem(this.getCacheKey());
+    if (html) {
+      this.el.insertAdjacentHTML('beforeend', html);
+      this.cacheRendered = true;
+      return [].slice.call(this.el.querySelectorAll('.gfl-item'));
+    }
   },
 
   // Default header template overridden by

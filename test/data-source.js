@@ -3,16 +3,16 @@
 
   var itemHeight = 64;
 
-  exports.DataSource = function DataSource(items) {
-    this.items = items;
+  exports.DataSource = function DataSource(data) {
+    this.data = data;
   };
 
   exports.DataSource.prototype = {
     createItem: function() {
-      var section = document.createElement('li');
-      section.innerHTML = '<h3> </h3><p> </p><div class="overlay">' +
+      var item = document.createElement('li');
+      item.innerHTML = '<h3> </h3><p> </p><div class="overlay">' +
       '<div class="cursor"></div></div>';
-      return section;
+      return item;
     },
 
     createSection: function() {
@@ -48,12 +48,12 @@
     },
 
     getFullSectionHeight: function() {
-      var result = this.items.length * itemHeight;
+      var result = this.data.length * itemHeight;
       return result;
     },
 
     getFullSectionLength: function() {
-      var result = this.items.length;
+      var result = this.data.length;
       return result;
     },
 
@@ -62,7 +62,7 @@
     },
 
     getRecordAt: function(index) {
-      return this.items[index];
+      return this.data[index];
     },
 
     getIndexAtPosition: function(pos) {
@@ -74,7 +74,7 @@
     },
 
     getFullLength: function() {
-      return this.items.length;
+      return this.data.length;
     },
 
     getItemHeight: function() {
@@ -82,15 +82,15 @@
     },
 
     getFullHeight: function() {
-      this.items.length * itemHeight;
+      this.data.length * itemHeight;
     },
 
     insertAtIndex: function(index, record, toSection) {
-      return this.items.splice(index, 0, record);
+      return this.data.splice(index, 0, record);
     },
 
     removeAtIndex: function(index, record) {
-      return this.items.splice(index, 1)[0];
+      return this.data.splice(index, 1)[0];
     }
   };
 })(window);

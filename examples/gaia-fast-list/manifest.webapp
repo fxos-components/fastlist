@@ -10,5 +10,7 @@
   },
   "type": "certified",
   "orientation": "default",
-  "permissions": {}
+  "permissions": {
+    "moz-extremely-unstable-and-will-change-webcomponents":{}
+  }
 }

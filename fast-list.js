@@ -27,7 +27,7 @@ exports = module.exports = FastList;
 exports.scheduler = schedule;
 
 function FastList(source) {
-  debug('initialize', source);
+  debug('initialize');
   this.editing = false;
   this.source = source;
 
@@ -41,7 +41,9 @@ function FastList(source) {
     itemContainer: source.itemContainer || source.list,
     container: source.container,
     list: source.list,
-    sections: []
+    sections: [],
+    items: source.items || [],
+    itemsInDOM: [].concat(source.items || [])
   };
 
   this.els.container.style.overflowX = 'hidden';
@@ -63,8 +65,6 @@ function FastList(source) {
   this._rendered = false;
   this._previousTop = -1;
   this._previousFast = false;
-  this._items = [];
-  this._itemsInDOM = [];
 
   this.reorderingContext = {
     item: null,
@@ -175,8 +175,8 @@ FastList.prototype = {
     debug('render');
 
     var source = this.source;
-    var items = this._items;
-    var itemsInDOM = this._itemsInDOM;
+    var items = this.els.items;
+    var itemsInDOM = this.els.itemsInDOM;
     var geo = this.geometry;
     var list = this.els.itemContainer;
 
@@ -210,13 +210,16 @@ FastList.prototype = {
     }
 
     function findItemFor(index) {
+      debug('find item for', index, recyclableItems);
       var item;
 
       if (recyclableItems.length > 0) {
         var recycleIndex = recyclableItems.pop();
         item = items[recycleIndex];
         delete items[recycleIndex];
+        debug('found node to recycle', recycleIndex, recyclableItems);
       } else if (itemsInDOM.length < geo.maxItemCount){
+        debug('need to create new node');
         item = self.createItem();
         list.appendChild(item);
         itemsInDOM.push(item);
@@ -231,6 +234,7 @@ FastList.prototype = {
 
     function renderItem(i) {
       var item = items[i];
+
       if (!item) {
         item = findItemFor(i);
         tryToPopulate(item, i, source, true);
@@ -238,6 +242,12 @@ FastList.prototype = {
       } else if (reload) {
         source.populateItem(item, i);
       }
+
+      // There is a chance that the user may
+      // have called .replaceChild() inside the
+      // .populateItem() hook. We redefine `item`
+      // here to make sure we have the latest node.
+      item = items[i];
 
       var section = source.getSectionFor(i);
       placeItem(item, i, section, geo, source, reload);
@@ -287,6 +297,16 @@ FastList.prototype = {
     return this.geometry.topPosition;
   },
 
+  replaceChild: function(replacement, child) {
+    debug('replace child', replacement, child);
+    var itemsInDOM = this.els.itemsInDOM;
+    var items = this.els.items;
+
+    items[items.indexOf(child)] = replacement;
+    itemsInDOM[itemsInDOM.indexOf(child)] = replacement;
+    this.els.itemContainer.replaceChild(replacement, child);
+  },
+
   scrollInstantly: function(by) {
     this.els.container.scrollTop += by;
     this.updateViewportGeometry();
@@ -302,6 +322,8 @@ FastList.prototype = {
   },
 
   updateSections: function() {
+    debug('update sections');
+
     var nodes = this.els.itemContainer.querySelectorAll('.fl-section');
     var source = this.source;
 
@@ -313,14 +335,14 @@ FastList.prototype = {
     var headerHeight = source.getSectionHeaderHeight();
     var sections = this.source.getSections();
 
-    sections.forEach(function(section, i) {
-      var height = source.getFullSectionHeight(section);
+    for (var j = 0; j < sections.length; j++) {
+      var height = source.getFullSectionHeight(sections[j]);
       var el = this.createSection();
 
       el.style.height = headerHeight + height + 'px';
-      this.source.populateSection(el, section, i);
+      this.source.populateSection(el, sections[j], j);
       this.els.itemContainer.appendChild(el);
-    }, this);
+    }
   },
 
   /**
@@ -335,7 +357,7 @@ FastList.prototype = {
 
     return toggleEditClass(
       this.els.itemContainer,
-      this._itemsInDOM,
+      this.els.itemsInDOM,
       this.editing
     );
   },
@@ -420,11 +442,11 @@ FastList.prototype = {
     if (touch.identifier == ctx.identifier) {
       var position = touch.pageY;
       var delta = position - ctx.initialY;
-      computeChanges(ctx, this.geometry, this._itemsInDOM, delta);
+      computeChanges(ctx, this.geometry, this.els.itemsInDOM, delta);
     }
 
     Promise.all([
-      applyChanges(ctx, this.geometry, this._itemsInDOM),
+      applyChanges(ctx, this.geometry, this.els.itemsInDOM),
       moveInPlace(ctx, this.geometry)
     ]).then(this._reorderFinish.bind(this, li))
       .then(toggleDraggingClass.bind(null, li, false));
@@ -445,7 +467,7 @@ FastList.prototype = {
     computeChanges(
       this.reorderingContext,
       this.geometry,
-      this._itemsInDOM,
+      this.els.itemsInDOM,
       delta
     );
 
@@ -457,15 +479,16 @@ FastList.prototype = {
     applyChanges(
       this.reorderingContext,
       this.geometry,
-      this._itemsInDOM
+      this.els.itemsInDOM
     );
   },
 
   _commitToDocument: function() {
+    debug('commit to document');
     var ctx = this.reorderingContext;
     var li = ctx.item;
-    var itemsInDOM = this._itemsInDOM;
-    var items = this._items;
+    var itemsInDOM = this.els.itemsInDOM;
+    var items = this.els.items;
     var source = this.source;
 
     return schedule.mutation((function() {
@@ -505,6 +528,8 @@ FastList.prototype = {
    */
 
   insertedAtIndex: function(index) {
+    debug('inserted at index', index);
+
     if (index !== 0) {
       //TODO: support any point of insertion
       return;
@@ -517,7 +542,7 @@ FastList.prototype = {
       return;
     }
 
-    var domItems = this._itemsInDOM;
+    var domItems = this.els.itemsInDOM;
     var list = this.els.itemContainer;
 
     list.classList.add('reordering');
@@ -531,9 +556,10 @@ FastList.prototype = {
   },
 
   _insertOnTop: function(keepScrollPosition) {
+    debug('insert on top', keepScrollPosition);
     return schedule.mutation((function() {
-      this._items.unshift(null);
-      delete this._items[0]; // keeping it sparse
+      this.els.items.unshift(null);
+      delete this.els.items[0]; // keeping it sparse
 
       this.updateSections();
 
@@ -574,7 +600,7 @@ FastList.prototype = {
         }
 
         var li = evt.target;
-        var index = this._items.indexOf(li);
+        var index = this.els.items.indexOf(li);
 
         this.els.itemContainer.dispatchEvent(new CustomEvent('item-selected', {
           bubbles: true,
@@ -657,6 +683,7 @@ function computeIndices(source, geometry) {
 }
 
 function recycle(items, start, end, action) {
+  debug('recycle', start, end, action);
   var recyclableItems = [];
 
   for (var i in items) {
@@ -673,6 +700,8 @@ function recycle(items, start, end, action) {
 }
 
 function tryToPopulate(item, index, source, first) {
+  debug('try to populate');
+
   if (parseInt(item.dataset.index) !== index && !first) {
     // The item was probably reused
     return;
@@ -701,17 +730,17 @@ function tryToPopulate(item, index, source, first) {
   }
 
   // Revealing the populated item
+  debug('revealing populated item');
   item.style.transition = 'opacity 0.2s linear';
   schedule.transition(function() {
     item.dataset.populated = true;
   }, item, 'transitionend').then(function() {
+    debug('populated item revealed');
     item.style.transition = '';
   });
 }
 
 function placeItem(item, index, section, geometry, source, reload) {
-  debug('place item');
-
   if (parseInt(item.dataset.index) === index && !reload) {
     // The item was probably reused
     debug('abort: item resused');
