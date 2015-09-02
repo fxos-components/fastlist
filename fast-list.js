@@ -74,20 +74,30 @@ function FastList(source) {
     moveDown: null,
   };
 
-  schedule.attachDirect(
-    this.els.container,
-    'scroll',
-    this.handleScroll.bind(this)
-  );
-
   on(this.els.container, 'click', this);
   on(window, 'resize', this);
 
   schedule.mutation(function() {
     this.updateContainerGeometry();
     this.updateListHeight();
+
+    // We can't set initial scrollTop
+    // until the list has a height
+    if (source.initialScrollTop) {
+      this.els.container.scrollTop = source.initialScrollTop;
+    }
+
     this.updateSections();
     this.render();
+
+    // Bind scroll listeners after setting
+    // the initialScrollTop to avoid
+    // triggering 'scroll' handler
+    schedule.attachDirect(
+      this.els.container,
+      'scroll',
+      this.handleScroll.bind(this)
+    );
   }.bind(this));
 }
 
@@ -316,8 +326,8 @@ FastList.prototype = {
   reloadData: function() {
     return schedule.mutation((function() {
       this.updateSections();
-      this.render(true);
       this.updateListHeight();
+      this.render(true);
     }).bind(this));
   },
 

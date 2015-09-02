@@ -104,14 +104,14 @@ suite('FastList >', function() {
       assert.equal(container.style.overflowY, 'scroll');
     });
 
-    test('it attaches a direct block to the scroll event', function() {
-      sinon.assert.calledOnce(scheduler.attachDirect);
-      sinon.assert.calledWith(scheduler.attachDirect, container, 'scroll');
-    });
-
     suite('> after a scheduler mutation flush', function() {
       setup(function() {
         scheduler.mutation.yield();
+      });
+
+      test('it attaches a direct block to the scroll event', function() {
+        sinon.assert.calledOnce(scheduler.attachDirect);
+        sinon.assert.calledWith(scheduler.attachDirect, container, 'scroll');
       });
 
       test('it calls source.getViewportHeight() if provided', function() {
@@ -490,8 +490,8 @@ suite('FastList >', function() {
           });
 
           test('it attaches a direct block to the move event', function() {
-            sinon.assert.calledTwice(scheduler.attachDirect);
-            sinon.assert.calledWith(scheduler.attachDirect, list, 'mousemove');
+            sinon.assert.calledOnce(
+              scheduler.attachDirect.withArgs(list, 'mousemove'));
           });
 
           suite('> then', function() {
