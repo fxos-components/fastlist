@@ -8,10 +8,6 @@ list.configure({
   getSectionName: item => item.date
 });
 
-// Setting model for the
-// first time creates the list.
-list.model = [];
-
 var chunkSize = 100;
 var total = 350;
 var count = 0;
@@ -19,12 +15,34 @@ var count = 0;
 function loadNext() {
   getDataAsync(count, chunkSize).then(data => {
     debug('got data', data);
-    list.model = list.model.concat(data);
+    var model = list.model || [];
+    list.model = model.concat(data);
     count += chunkSize;
 
     if (count < total) {
       loadNext();
     }
+  });
+}
+
+// Keeping this function around for manual testing
+function getDataSync(from, limit) {
+  debug('get data async', from, limit);
+  return new Promise(resolve => {
+    var to = Math.min(from + limit, total);
+    var date = Date.now();
+    var result = [];
+
+    for (var i = from; i < to; i++) {
+      result.push({
+        title: `Title ${i}`,
+        metadata: { body: `Body ${i}` },
+        image: 'image.jpg',
+        date: date
+      });
+    }
+
+    resolve(result);
   });
 }
 
@@ -46,7 +64,7 @@ function getDataAsync(from, limit) {
       }
 
       resolve(result);
-    }, 500);
+    }, 1000);
   });
 }
 
