@@ -9,14 +9,12 @@
   "quotmark": "single",
   "undef": true,
   "unused": "vars",
-  "strict": true,
   "trailing": true,
   "maxlen": 80,
   "laxbreak": true,
 
   "eqnull": true,
   "expr": true,
-  "globalstrict": true,
 
   "maxerr": 1000,
   "regexdash": true,

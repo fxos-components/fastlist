@@ -6,6 +6,7 @@
 
 var component = require('gaia-component');
 var FastList = require('fast-list');
+var scheduler = FastList.scheduler;
 var poplar = require('poplar');
 
 /**
@@ -32,6 +33,7 @@ var GaiaFastListProto = {
     this.top = this.getAttribute('top');
     this.bottom = this.getAttribute('bottom');
     this.caching = this.getAttribute('caching');
+    this.offset = this.getAttribute('offset');
     this[internal] = new Internal(this);
     debug('created');
   },
@@ -82,6 +84,29 @@ var GaiaFastListProto = {
         else this.removeAttribute('caching');
         this._caching = value;
       }
+    },
+
+    offset: {
+      get() { return this._offset || 0; },
+      set(value) {
+        if (value == this._offset) return;
+        if (value) this.setAttribute('offset', value);
+        else this.removeAttribute('offset');
+        this._offset = Number(value);
+      }
+    },
+
+    scrollTop: {
+      get() { return this[internal].fastList.scrollTop; },
+      set(value) {
+        if (this[internal].fastList) this[internal].container.scrollTop = value;
+        else this[internal].initialScrollTop = value;
+      }
+    },
+
+    minScrollHeight: {
+      get() { return this[internal].list.style.minHeight; },
+      set(value) { this[internal].list.style.minHeight = value; }
     }
   },
 
@@ -104,7 +129,11 @@ var GaiaFastListProto = {
         left: 0; top: 0;
         height: 100%;
         width: 100%;
-        overflow: hidden;
+        overflow: hidden !important;
+      }
+
+      .fast-list.layerize {
+        overflow-y: scroll !important;
       }
 
       .fast-list.empty {
@@ -266,9 +295,9 @@ Internal.prototype = {
   },
 
   sectionize: function(items) {
+    debug('sectionize', items);
+    if (!this.getSectionName) return;
     var hash = {};
-
-    if (!this.getSectionName) { return hash; }
 
     for (var i = 0, l = items.length; i < l; i++) {
       var section = this.getSectionName(items[i]);
@@ -283,8 +312,13 @@ Internal.prototype = {
   createList: function() {
     debug('create list');
     this.fastList = new FastList(this);
-    this.el.classList.add('layerize');
+    setTimeout(() => this.layerize(), 360);
     this.updateCache();
+  },
+
+  layerize: function() {
+    this.el.classList.add('layerize');
+    this.container.classList.add('layerize');
   },
 
   configure: function(props) {
@@ -406,11 +440,11 @@ Internal.prototype = {
   // section names. This would probably
   // require the user do some additional
   // formatting before setting the model.
-  getSectionName: function() {},
+  getSectionName: undefined,
 
   getSectionFor: function(index) {
     var item = this.getRecordAt(index);
-    return this.getSectionName(item);
+    return this.getSectionName && this.getSectionName(item);
   },
 
   eachSection: function(fn) {
@@ -429,13 +463,16 @@ Internal.prototype = {
 
   getIndexAtPosition: function(pos) {
     // debug('get index at position', pos);
+    var sections = this.sections || [this.model];
     var headerHeight = this.getSectionHeaderHeight();
     var itemHeight = this.getItemHeight();
     var fullLength = this.getFullLength();
     var index = 0;
 
-    for (var name in this.sections) {
-      var items = this.sections[name];
+    pos += this.el.offset;
+
+    for (var name in sections) {
+      var items = sections[name];
       var sectionHeight = items.length * itemHeight;
 
       pos -= headerHeight;
@@ -465,10 +502,10 @@ Internal.prototype = {
 
   getPositionForIndex: function(index) {
     // debug('get position for index', index);
+    var sections = this.sections || [this.model];
     var headerHeight = this.getSectionHeaderHeight();
     var itemHeight = this.getItemHeight();
-    var sections = this.sections;
-    var top = 0;
+    var top = this.el.offset;
 
     for (var name in sections) {
       var items = sections[name];
@@ -498,7 +535,7 @@ Internal.prototype = {
   getFullHeight: function() {
     var headers = this.getSections().length * this.getSectionHeaderHeight();
     var items = this.getFullLength() * this.getItemHeight();
-    return headers + items;
+    return headers + items + this.el.offset;
   },
 
   insertAtIndex: function(index, record, toSection) {
