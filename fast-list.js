@@ -47,7 +47,7 @@ function FastList(source) {
   };
 
   this.els.container.style.overflowX = 'hidden';
-  this.els.container.style.overflowY = 'scroll';
+  this.els.container.style.overflowY = 'hidden';
 
   this.geometry = {
     topPosition: 0,
@@ -198,6 +198,7 @@ FastList.prototype = {
     var self = this;
 
     // Initial render generating all dom nodes
+    var prepareForScroll = !this._rendered;
     if (!this._rendered) {
       this._rendered = true;
       endIndex = Math.min(
@@ -217,6 +218,10 @@ FastList.prototype = {
       for (var i = startIndex; i <= endIndex; ++i) renderItem(i);
     } else {
       for (var j = endIndex; j >= startIndex; --j) renderItem(j);
+    }
+
+    if (prepareForScroll) {
+      setTimeout(this._prepareForScroll.bind(this), 360);
     }
 
     function findItemFor(index) {
@@ -278,7 +283,6 @@ FastList.prototype = {
     el.style.position = 'absolute';
     el.style.left = el.style.top = 0;
     el.style.overflow = 'hidden';
-    el.style.willChange = 'transform';
     return el;
   },
 
@@ -286,6 +290,17 @@ FastList.prototype = {
     var el = this.source.createSection();
     el.classList.add('fl-section');
     return el;
+  },
+
+  _prepareForScroll: function() {
+    this.els.container.style.overflowY = 'scroll';
+
+    var itemsInDOM = this._itemsInDOM;
+    return schedule.mutation(function() {
+      for (var i = 0; i < itemsInDOM.length; i++) {
+        itemsInDOM[i].style.willChange = 'transform';
+      }
+    });
   },
 
   /**
