@@ -8,6 +8,7 @@ var component = require('gaia-component');
 var FastList = require('fast-list');
 var scheduler = FastList.scheduler;
 var poplar = require('poplar');
+require('gaia-sub-header');
 
 /**
  * Mini Logger
@@ -133,9 +134,13 @@ var GaiaFastListProto = {
 
       .fast-list {
         position: absolute;
-        left: 0; top: 0;
+        left: 0;
+        top: 0;
+
+        box-sizing: border-box;
         height: 100%;
         width: 100%;
+        padding: 0 17px;
         overflow: hidden !important;
       }
 
@@ -154,17 +159,17 @@ var GaiaFastListProto = {
       }
 
       .fast-list ul {
+        position: relative;
         list-style: none;
         padding: 0;
         margin: 0;
       }
 
       .fast-list.empty:before {
-        content: '';
+        content: ''
         position: sticky;
-        position: -webkit-sticky;
         top: 0px;
-        height: 32px;
+        height: 40px;
         z-index: 100;
 
         display: block;
@@ -173,22 +178,18 @@ var GaiaFastListProto = {
         color: var(--title-color);
       }
 
+      ::content .gfl-section {
+        position: relative;
+        padding-top: 20px;
+        box-sizing: border-box;
+      }
+
       ::content .gfl-header {
         position: sticky;
-        position: -webkit-sticky;
         top: 0px;
-        height: 32px;
         z-index: 100;
 
-        margin: 0;
-        padding: 0 6px;
-        box-sizing: border-box;
-        border-bottom: solid 1px var(--border-color);
-        font-size: 0.9em;
-        line-height: 32px;
-
-        background: var(--background-plus);
-        color: var(--title-color);
+        margin: 0 !important;
       }
 
       ::content .background {
@@ -200,20 +201,15 @@ var GaiaFastListProto = {
       ::content .gfl-item {
         z-index: 10;
 
-        display: flex;
         box-sizing: border-box;
+        display: flex;
         width: 100%;
         height: 60px;
-        padding: 9px 16px;
-        border-bottom: solid 1px var(--border-color);
+        padding: 9px 0;
         align-items: center;
 
-        font-size: 18px;
-        font-weight: normal;
-        font-style: normal;
         list-style-type: none;
         color: var(--text-color);
-        background: var(--background);
         -moz-user-select: none;
         text-decoration: none;
         will-change: initial !important;
@@ -225,20 +221,19 @@ var GaiaFastListProto = {
 
       ::content .gfl-item .text {
         flex: 1;
-        background: var(--background);
+        min-width: 0;
       }
 
       ::content .gfl-item .image {
         width: 60px;
         height: 60px;
-        margin: 0 -16px;
-        background: var(--background-minus);
+        background: var(--border-color);
+        -moz-margin-start: 17px;
       }
 
       ::content .gfl-item .image.round {
-        width: 42px;
-        height: 42px;
-        margin: 0 -8px;
+        width: 44px;
+        height: 44px;
         border-radius: 50%;
         overflow: hidden;
       }
@@ -252,17 +247,19 @@ var GaiaFastListProto = {
         margin: 0;
         overflow: hidden;
 
-        font-size: inherit;
+        font-size: 20px;
         font-weight: 400;
         white-space: nowrap;
         text-overflow: ellipsis;
+        color: var(--text-color);
         background: var(--background);
       }
 
       ::content p {
         margin: 0;
-        font-size: 0.7em;
+        font-size: 15px;
         line-height: 1.35em;
+        color: var(--text-color-minus);
         background: var(--background);
       }
     </style>`
@@ -284,7 +281,7 @@ function Internal(el) {
 }
 
 Internal.prototype = {
-  headerHeight: 32,
+  headerHeight: 40,
   itemHeight: 60,
 
   setModel: function(model) {
@@ -301,16 +298,39 @@ Internal.prototype = {
     this.container.classList.toggle('empty', value);
   },
 
+  /**
+   * Sorts items into sections using
+   * the user provided getSectionName()
+   *
+   * @param  {Array} items
+   * @return {Object}
+   */
   sectionize: function(items) {
     debug('sectionize', items);
     if (!this.getSectionName) return;
     var hash = {};
 
     for (var i = 0, l = items.length; i < l; i++) {
-      var section = this.getSectionName(items[i]);
-      if (!section) { return; }
-      if (!hash[section]) { hash[section] = []; }
-      hash[section].push(items[i]);
+      var item = items[i];
+      var section = this.getSectionName(item);
+
+      if (!section) continue;
+
+      // When there is no section yet
+      // we can assume that this item
+      // is the first item in the section.
+      if (!hash[section]) {
+        hash[section] = [];
+        item.gfl_isFirst = true;
+
+      // Make sure that any previously
+      // assigned flags are removed as
+      // order of items can be changed.
+      } else if (item.gfl_isFirst) {
+        delete item.gfl_isFirst;
+      }
+
+      hash[section].push(item);
     }
 
     return hash;
@@ -394,8 +414,12 @@ Internal.prototype = {
       debug('not a poplar element');
       var replacement = this.fastList.createItem();
       this.fastList.replaceChild(replacement, el);
-      this.populateItem(replacement, i);
+      return this.populateItem(replacement, i);
     }
+
+    el.style.borderTop = !record.gfl_isFirst
+      ? 'solid 1px var(--border-color)'
+      : '0';
   },
 
   populateSection: function(el, section) {
@@ -639,7 +663,7 @@ Internal.prototype = {
 
   // Default header template overridden by
   // <template header> inside <gaia-fast-list>
-  templateHeader: '<h2>${section}</h2>',
+  templateHeader: '<gaia-sub-header>${section}</gaia-sub-header>',
 
   // Default item template overridden by
   // <template item> inside <gaia-fast-list>
