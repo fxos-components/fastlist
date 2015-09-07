@@ -15,9 +15,14 @@ var count = 0;
 function loadNext() {
   getDataAsync(count, chunkSize).then(data => {
     debug('got data', data);
+
     var model = list.model || [];
     list.model = model.concat(data);
+
     count += chunkSize;
+    if (count >= total) {
+      list.complete();
+    }
 
     if (count < total) {
       loadNext();
