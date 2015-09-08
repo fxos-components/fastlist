@@ -40,7 +40,7 @@ function getDataSync(from, limit) {
 
     for (var i = from; i < to; i++) {
       result.push({
-        title: `Title ${i}`,
+        title: `Title ${i} long long long long long long long`,
         metadata: { body: `Body ${i}` },
         image: 'image.jpg',
         date: date
