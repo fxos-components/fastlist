@@ -9,7 +9,7 @@
     var listContainer = document.querySelector('section');
 
     var source = new BaconSource(listContainer);
-    var list = new FastList(source);
+    var list = new FastList(source).plugin(fastListEdit);
     var scheduler = FastList.scheduler;
 
     function updateHeader() {
@@ -22,11 +22,9 @@
     updateHeader();
 
     function openAlert(evt) {
-      scheduler.mutation(function() {
-        var detail = evt.detail;
-        var li = source.getRecordAt(detail.index);
-        alert(li.title + ' item clicked!');
-      });
+      var detail = evt.detail;
+      var li = source.getRecordAt(detail.index);
+      li && alert(li.title + ' item clicked!');
     }
     list.els.list.addEventListener('item-selected', openAlert);
 
