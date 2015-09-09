@@ -26,6 +26,7 @@
   "dependencies": {
     "gaia-component": "gaia-components/gaia-component#~0.3.9",
     "gaia-sub-header": "gaia-components/gaia-sub-header#~0.4.1",
-    "poplar": "wilsonpage/poplar"
+    "poplar": "wilsonpage/poplar",
+    "dom-scheduler": "etiennesegonzac/dom-scheduler"
   }
 }
