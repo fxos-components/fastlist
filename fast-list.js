@@ -77,7 +77,7 @@ function FastList(source) {
   on(this.els.container, 'click', this);
   on(window, 'resize', this);
 
-  schedule.mutation(function() {
+  this.rendered = schedule.mutation(function() {
     this.updateContainerGeometry();
     this.updateListHeight();
 
@@ -324,11 +324,11 @@ FastList.prototype = {
   },
 
   reloadData: function() {
-    return schedule.mutation((function() {
+    return this.rendered = schedule.mutation(function() {
       this.updateSections();
       this.updateListHeight();
       this.render(true);
-    }).bind(this));
+    }.bind(this));
   },
 
   updateSections: function() {
