@@ -152,14 +152,6 @@ var myList = new FastList({
 
 ## API
 
-### Edit mode
-
-```js
-list.toggleEditMode()
-```
-
-This method returns a promise, fulfilled once the transition is done.
-
 ### Notifying of new content insertion
 
 ```js
@@ -193,3 +185,24 @@ list.updateListHeight()
 ```
 
 Can be called if the number of items in the list has changed, it'll return a scheduler promise fulfilled after the mutation is executed. This will also cause the scrollbar to flash.
+
+### Edit mode
+The edit mode support leaves in a plugin, to enable in you need to load
+`fast-list-edit.js` and initialize the `FastList` as follow.
+```js
+var list = new FastList(config).plugin(fastListEdit);
+```
+
+```js
+/**
+ * Toggles the edit mode on and off
+ *
+ * Returns the DomScheduler promise of the edit mode transition
+ *
+ * @return {Promise}
+ */
+list.toggleEditMode()
+```
+
+This method returns a promise, fulfilled once the transition is done.
+

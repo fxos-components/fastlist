@@ -6,11 +6,6 @@
  */
 var debug = 0 ? console.log.bind(console, '[FastList]') : function() {};
 
-// Pointer/touch abstraction
-var startEvent = ('ontouchstart' in window) ? 'touchstart' : 'mousedown';
-var moveEvent = ('ontouchstart' in window) ? 'touchmove' : 'mousemove';
-var endEvent = ('ontouchstart' in window) ? 'touchend' : 'mouseup';
-
 /**
  * Use the dom-scheduler if it's around,
  * else fallback to fake shim.
@@ -28,7 +23,6 @@ exports.scheduler = schedule;
 
 function FastList(source) {
   debug('initialize');
-  this.editing = false;
   this.source = source;
 
   // List elements aren't required
@@ -102,9 +96,20 @@ function FastList(source) {
 }
 
 FastList.prototype = {
+  plugin: function(fn) {
+    fn(this);
+    return this;
+  },
 
-  /* Rendering
-     ========= */
+  /**
+   * Updates the container geometry state needed for the rendering
+   *
+   * - viewport height
+   * - number of items per screen
+   * - maximum number of items in the dom
+   * - window left for direction changes
+   *
+   */
   updateContainerGeometry: function() {
     var geo = this.geometry;
 
@@ -112,7 +117,7 @@ FastList.prototype = {
     var itemPerScreen = geo.viewportHeight / geo.itemHeight;
     // Taking into account the will-change budget multiplier from
     // layout/base/nsDisplayList.cpp#1193
-    geo.maxItemCount = Math.floor(itemPerScreen * 2.8);
+    geo.maxItemCount = Math.floor(itemPerScreen * 3);
     geo.switchWindow = Math.floor(itemPerScreen / 2);
 
     debug('maxItemCount: ' + geo.maxItemCount);
@@ -133,8 +138,19 @@ FastList.prototype = {
       : this.els.container.offsetHeight;
   },
 
-  // Returns true if we're fast scrolling
-  updateViewportGeometry: function() {
+  /**
+   * Updates the rendering window geometry state
+   *
+   * - top position
+   * - previous top position
+   * - previous fast scrolling
+   *
+   * Returns true when the renderng window moves so fast we should'nt
+   * bother to render
+   *
+   * @return {Bool} fastScrolling
+   */
+  updateRenderingWindow: function() {
     var geo = this.geometry;
 
     var position = this.els.container.scrollTop;
@@ -181,6 +197,12 @@ FastList.prototype = {
     return fastScrolling && !onTop && !atBottom;
   },
 
+  /**
+   * Places and populates the item in the rendering window
+   *
+   * @param {Bool} reload forces the re-population of all items
+   * @param {Number} changedIndex flags an item as new (for animated insertions)
+   */
   render: function(reload, changedIndex) {
     debug('render');
 
@@ -288,25 +310,6 @@ FastList.prototype = {
     return el;
   },
 
-  /**
-   * Scrolling
-   */
-
-  handleScroll: function(evt) {
-    var fast = this.updateViewportGeometry();
-    if (fast) debug('[x] ---------- faaaaassssstttt');
-    else this.render();
-  },
-
-  updateListHeight: function() {
-    this.els.list.style.height = this.source.getFullHeight() + 'px';
-    debug('updated list height', this.els.list.style.height);
-  },
-
-  get scrollTop() {
-    return this.geometry.topPosition;
-  },
-
   replaceChild: function(replacement, child) {
     debug('replace child', replacement, child);
     var itemsInDOM = this.els.itemsInDOM;
@@ -315,12 +318,6 @@ FastList.prototype = {
     items[items.indexOf(child)] = replacement;
     itemsInDOM[itemsInDOM.indexOf(child)] = replacement;
     this.els.itemContainer.replaceChild(replacement, child);
-  },
-
-  scrollInstantly: function(by) {
-    this.els.container.scrollTop += by;
-    this.updateViewportGeometry();
-    this.render();
   },
 
   reloadData: function() {
@@ -356,182 +353,30 @@ FastList.prototype = {
   },
 
   /**
-   * Edit Mode
+   * Scrolling
    */
 
-  toggleEditMode: function() {
-    this.editing = !this.editing;
-
-    if (this.editing) this._startTouchListeners();
-    else this._stopTouchListeners();
-
-    return toggleEditClass(
-      this.els.itemContainer,
-      this.els.itemsInDOM,
-      this.editing
-    );
+  handleScroll: function(evt) {
+    var fast = this.updateRenderingWindow();
+    if (fast) debug('[x] ---------- faaaaassssstttt');
+    else this.render();
   },
 
-  _startTouchListeners: function() {
-    on(this.els.itemContainer, startEvent, this);
-    on(this.els.itemContainer, endEvent, this);
+  updateListHeight: function() {
+    this.els.list.style.height = this.source.getFullHeight() + 'px';
+    debug('updated list height', this.els.list.style.height);
   },
 
-  _stopTouchListeners: function() {
-    off(this.els.itemContainer, startEvent, this);
-    off(this.els.itemContainer, endEvent, this);
+  get scrollTop() {
+    return this.geometry.topPosition;
   },
 
-  /**
-   * Reordering
-   */
-
-  _reorderStart: function(evt) {
-    debug('reorder start');
-    var ctx = this.reorderingContext;
-
-    // Already tracking an item, bailing out
-    if (ctx.item) return;
-
-    var li = evt.target.parentNode.parentNode;
-    var touch = evt.touches && evt.touches[0] || evt;
-
-    ctx.item = li;
-    ctx.initialY = touch.pageY;
-    ctx.identifier = touch.identifier;
-    ctx.moveUp = new Set();
-    ctx.moveDown = new Set();
-    ctx.moveHandler = this._reorderMove.bind(this);
-
-    var listenToMove = (function() {
-      schedule.attachDirect(
-        this.els.itemContainer,
-        moveEvent,
-        ctx.moveHandler);
-    }).bind(this);
-
-    setupForDragging(li, true)
-      .then(listenToMove)
-      .then(toggleDraggingClass.bind(null, li, true));
+  scrollInstantly: function(by) {
+    this.els.container.scrollTop += by;
+    this.updateRenderingWindow();
+    this.render();
   },
 
-  _reorderMove: function(evt) {
-    debug('reorder move');
-    var ctx = this.reorderingContext;
-    if (!ctx.item) return;
-
-    // Multi touch
-    if (evt.touches && evt.touches.length > 1) return;
-
-    var li = ctx.item;
-    var touch = evt.touches && evt.touches[0] || evt;
-    var position = touch.pageY;
-
-    var delta = position - ctx.initialY;
-
-    this._rearrange(delta);
-    tweakTransform(li, delta);
-
-    // TODO: scroll when close to the beginning/end of the viewport
-  },
-
-  _reorderEnd: function(evt) {
-    debug('reorder end');
-
-    var ctx = this.reorderingContext;
-    var li = ctx.item;
-
-    if (!li) return;
-
-    schedule.detachDirect(
-      this.els.itemContainer,
-      moveEvent,
-      ctx.moveHandler);
-
-    var touch = evt.touches && evt.touches[0] || evt;
-    if (touch.identifier == ctx.identifier) {
-      var position = touch.pageY;
-      var delta = position - ctx.initialY;
-      computeChanges(ctx, this.geometry, this.els.itemsInDOM, delta);
-    }
-
-    Promise.all([
-      applyChanges(ctx, this.geometry, this.els.itemsInDOM),
-      moveInPlace(ctx, this.geometry)
-    ]).then(this._reorderFinish.bind(this, li))
-      .then(toggleDraggingClass.bind(null, li, false));
-  },
-
-  _reorderFinish: function(li) {
-    return Promise.all([
-      this._commitToDocument(),
-      setupForDragging(li, false)
-    ]);
-  },
-
-  _rearrange: function(delta) {
-    var ctx = this.reorderingContext;
-    var upCount = ctx.moveUp.size;
-    var downCount = ctx.moveDown.size;
-
-    computeChanges(
-      this.reorderingContext,
-      this.geometry,
-      this.els.itemsInDOM,
-      delta
-    );
-
-    if (ctx.moveUp.size === upCount &&
-        ctx.moveDown.size === downCount) {
-      return;
-    }
-
-    applyChanges(
-      this.reorderingContext,
-      this.geometry,
-      this.els.itemsInDOM
-    );
-  },
-
-  _commitToDocument: function() {
-    debug('commit to document');
-    var ctx = this.reorderingContext;
-    var li = ctx.item;
-    var itemsInDOM = this.els.itemsInDOM;
-    var items = this.els.items;
-    var source = this.source;
-
-    return schedule.mutation((function() {
-      // Nothing to do
-      if (!ctx.moveUp && !ctx.moveDown) {
-        return;
-      }
-
-      var index = items.indexOf(li);
-      var section = li.dataset.section;
-      var newIndex = index + ctx.moveUp.size - ctx.moveDown.size;
-
-      items.splice(index, 1);
-      items.splice(newIndex, 0, li);
-      var c = source.removeAtIndex(index);
-      source.insertAtIndex(newIndex, c, section);
-
-      itemsInDOM.forEach(function(item) {
-        resetTransition(item);
-        resetTransform(item);
-      });
-
-      this.updateSections();
-      this.render();
-
-      ctx.item = null;
-      ctx.initialY = null;
-      ctx.identifier = null;
-      ctx.moveUp = null;
-      ctx.moveDown = null;
-      ctx.moveHandler = null;
-    }).bind(this));
-  },
 
   /**
    * External Content Changes
@@ -588,21 +433,6 @@ FastList.prototype = {
     switch (evt.type) {
       case 'resize':
         this.updateContainerGeometry();
-        break;
-      case startEvent:
-        if (!evt.target.classList.contains('cursor')) {
-          return;
-        }
-        evt.preventDefault();
-        this._reorderStart(evt);
-        break;
-      case endEvent:
-        if (!evt.target.classList.contains('cursor') &&
-            endEvent === 'touchend') {
-          return;
-        }
-        evt.preventDefault();
-        this._reorderEnd(evt);
         break;
       case 'click':
         if (this.editing) {
@@ -780,22 +610,20 @@ function tweakTransform(item, delta) {
   item.dataset.tweakDelta = delta;
 }
 
-function resetTransition(item) {
-  item.style.transition = '';
-  item.style.webkitTransition = '';
-}
+/**
+ * Internals
+ */
 
-function tweakAndTransition(item, tweak) {
-  return schedule.feedback(function() {
-      item.style.transition = 'transform 0.15s ease';
-      item.style.webkitTransition = '-webkit-transform 0.15s ease';
-      if (tweak === 0) {
-        setTimeout(resetTransform.bind(null, item));
-        return;
-      }
-      setTimeout(tweakTransform.bind(null, item, tweak));
-    }, item, 'transitionend')
-    .then(resetTransition.bind(null, item));
+function cleanInlineStyles(domItems) {
+  return schedule.mutation(function() {
+    for (var i = 0; i < domItems.length; i++) {
+      var item = domItems[i];
+      item.style.transition = '';
+      item.style.webkitTransition = '';
+      resetTransform(item);
+    }
+    domItems[0] && domItems[0].scrollTop; // flushing
+  });
 }
 
 function pushDown(domItems, geometry) {
@@ -826,137 +654,6 @@ function reveal(list) {
   });
 }
 
-function cleanInlineStyles(domItems) {
-  return schedule.mutation(function() {
-    for (var i = 0; i < domItems.length; i++) {
-      var item = domItems[i];
-      item.style.transition = '';
-      item.style.webkitTransition = '';
-      resetTransform(item);
-    }
-    domItems[0] && domItems[0].scrollTop; // flushing
-  });
-}
-
-function toggleEditClass(list, domItems, editing) {
-  if (!domItems.length) return Promise.resolve();
-
-  return schedule.feedback(function() {
-    for (var i = 0; i < domItems.length; i++) {
-      var item = domItems[i];
-      var overlay = item.querySelector('.overlay');
-      overlay.dataset.anim = editing ? 'reveal' : 'hide';
-      item.classList.toggle('edit', editing);
-    }
-  }, list, 'animationend');
-}
-
-function setupForDragging(item, on) {
-  return schedule.mutation(function() {
-    item.parentNode.classList.toggle('reordering', on);
-    item.style.zIndex = on ? '1000' : '';
-    item.style.boxShadow = on ? '0 0 3px 1px #bcbcbc' : '';
-  });
-}
-
-function toggleDraggingClass(item, on) {
-  return schedule.feedback(function() {
-    var overlay = item.querySelector('.overlay');
-    overlay.dataset.anim = on ? 'hide' : 'reveal';
-  }, item, 'animationend');
-}
-
-function computeChanges(context, geometry, domItems, delta) {
-  if (!context.item) return;
-
-  var draggedItem = context.item;
-  var draggedOriginal = parseInt(draggedItem.dataset.position);
-  var draggedTweaked = draggedOriginal + delta;
-
-  for (var i = 0; i < domItems.length; i++) {
-    var item = domItems[i];
-    if (item === draggedItem) continue;
-
-    // TODO: support re-ordering accross sections
-    if (item.dataset.section !== draggedItem.dataset.section) continue;
-
-    var itemOriginal = parseInt(item.dataset.position);
-    var itemTweaked = itemOriginal + parseInt(item.dataset.tweakDelta);
-
-    if ((itemOriginal < draggedOriginal) && (draggedTweaked < itemOriginal)) {
-      context.moveDown.add(item);
-    } else {
-      if (draggedTweaked > itemTweaked) {
-        context.moveDown.delete(item);
-      }
-    }
-
-    if ((itemOriginal > draggedOriginal) && (draggedTweaked > itemOriginal)) {
-      context.moveUp.add(item);
-    } else {
-      if (draggedTweaked < itemTweaked) {
-        context.moveUp.delete(item);
-      }
-    }
-  }
-}
-
-function applyChanges(context, geometry, domItems) {
-  if (!context.item) return Promise.resolve();
-
-  var itemHeight = geometry.itemHeight;
-  var draggedItem = context.item;
-  var promises = [];
-
-  for (var i = 0; i < domItems.length; i++) {
-    var item = domItems[i];
-    if (item === draggedItem) continue;
-
-    // Reset
-    if (item.dataset.tweakDelta &&
-       !context.moveUp.has(item) && !context.moveDown.has(item)) {
-
-      promises.push(tweakAndTransition(item, 0));
-    }
-
-    // Moving down
-    if (context.moveDown.has(item)) {
-      if (parseInt(item.dataset.tweakDelta) !== itemHeight) {
-        promises.push(tweakAndTransition(item, itemHeight));
-      }
-    }
-
-    // Moving up
-    if (context.moveUp.has(item)) {
-      if (parseInt(item.dataset.tweakDelta) !== itemHeight * -1) {
-        promises.push(tweakAndTransition(item, itemHeight * -1));
-      }
-    }
-  }
-
-  return Promise.all(promises);
-}
-
-function moveInPlace(context, geometry) {
-  var li = context.item;
-
-  // We're already in place
-  if (!li.dataset.tweakDelta) return Promise.resolve();
-
-  var position = parseInt(li.dataset.position);
-  var taintedPosition = position + parseInt(li.dataset.tweakDelta);
-  var itemHeight = geometry.itemHeight;
-  var newPosition = position + context.moveUp.size * itemHeight -
-    context.moveDown.size * itemHeight;
-
-  var duration = (Math.abs(taintedPosition - newPosition) / itemHeight) * 150;
-
-  return schedule.feedback(function() {
-    li.style.transition = 'transform ' + duration + 'ms linear';
-    li.style.webkitTransition = '-webkit-transform ' + duration + 'ms linear';
-    setTimeout(tweakTransform.bind(null, li, (newPosition - position)));
-  }, li, 'transitionend');
-}
 
 /**
  * Utils
