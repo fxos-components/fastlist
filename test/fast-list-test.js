@@ -29,8 +29,9 @@ suite('FastList >', function() {
   };
 
   setup(function() {
-    sinon.stub(scheduler, 'attachDirect');
-    sinon.stub(scheduler, 'mutation');
+    this.sinon = sinon.sandbox.create();
+    this.sinon.stub(scheduler, 'attachDirect');
+    this.sinon.stub(scheduler, 'mutation');
 
     fakeDoc = document.createElement('div');
     container = document.createElement('div');
@@ -49,8 +50,7 @@ suite('FastList >', function() {
   });
 
   teardown(function() {
-    scheduler.attachDirect.restore();
-    scheduler.mutation.restore();
+    this.sinon.restore();
     fakeDoc.remove();
   });
 
@@ -181,6 +181,15 @@ suite('FastList >', function() {
     scheduler.mutation.yield();
 
     sinon.assert.notCalled(createItem);
+  });
+
+  test('.rendered Promise resolves when rendering complete', function() {
+    scheduler.mutation.restore();
+    fastList = new FastList(source);
+    return fastList.rendered.then(() => {
+      var items = container.querySelectorAll('li');
+      assert.ok(items.length);
+    });
   });
 
   suite('Scrolling >', function() {
