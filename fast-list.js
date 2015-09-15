@@ -371,12 +371,11 @@ FastList.prototype = {
     return this.geometry.topPosition;
   },
 
-  scrollInstantly: function(by) {
-    this.els.container.scrollTop += by;
+  scrollInstantly: function(position) {
+    this.els.container.scrollTop = position;
     this.updateRenderingWindow();
     this.render();
   },
-
 
   /**
    * External Content Changes
@@ -419,7 +418,8 @@ FastList.prototype = {
       this.updateSections();
 
       if (keepScrollPosition) {
-        this.scrollInstantly(this.geometry.itemHeight);
+        var scrollTop = this.els.container.scrollTop;
+        this.scrollInstantly(scrollTop + this.geometry.itemHeight);
         this.els.container.dispatchEvent(new CustomEvent('hidden-new-content'));
       } else {
         this.render(false, 0);

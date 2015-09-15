@@ -268,16 +268,41 @@ suite('FastList >', function() {
     setup(function() {
       fastList = new FastList(source);
       scheduler.mutation.yield();
-
-      fastList.scrollInstantly(1200);
     });
 
     test('it updates the rendering directly', function() {
+      fastList.scrollInstantly(1200);
       assertCurrentlyRenderedWindow({
         container: container,
         source: source,
         from: 15,
         to: 36
+      });
+    });
+
+    test('it supports absolute values', function() {
+      fastList.scrollInstantly(0);
+      assertCurrentlyRenderedWindow({
+        container: container,
+        source: source,
+        from: 0,
+        to: 21
+      });
+
+      fastList.scrollInstantly(480);
+      assertCurrentlyRenderedWindow({
+        container: container,
+        source: source,
+        from: 4,
+        to: 25
+      });
+
+      fastList.scrollInstantly(960);
+      assertCurrentlyRenderedWindow({
+        container: container,
+        source: source,
+        from: 12,
+        to: 33
       });
     });
   });
