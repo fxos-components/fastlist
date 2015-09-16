@@ -10,7 +10,7 @@
   exports.DataSource.prototype = {
     createItem: function() {
       var item = document.createElement('li');
-      item.innerHTML = '<h3> </h3><p> </p><div class="overlay">' +
+      item.innerHTML = '<h3> </h3><p> </p><img /><div class="overlay">' +
       '<div class="cursor"></div></div>';
       return item;
     },
@@ -28,6 +28,16 @@
 
       title.textContent = record.title;
       body.textContent = record.body;
+    },
+
+    populateItemDetail: function(item, i) {
+      var img = item.querySelector('img');
+      img.src = '#' + i + '.png';
+    },
+
+    unpopulateItemDetail: function(item) {
+      var img = item.querySelector('img');
+      img.removeAttribute('src');
     },
 
     populateSection: function(el, section, i) {

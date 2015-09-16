@@ -1,6 +1,6 @@
 /* global suite, sinon, setup, teardown, test, assert,
    DataSource, FastList,
-   createDummyData, assertCurrentlyRenderedWindow */
+   createDummyData, assertCurrentlyRenderedWindow, MockPromise */
 
 suite('FastList >', function() {
   'use strict';
@@ -171,11 +171,38 @@ suite('FastList >', function() {
         container: container,
         source: source,
         from: 15,
-        to: 36
+        to: 36,
+        expectsDetail: true
       });
     });
 
-    suite('really fast >', function() {
+    suite('scrolling a bit faster >', function() {
+      setup(function() {
+        container.scrollTop += 256; // 4 items
+        scheduler.attachDirect.yield();
+      });
+
+      test('it updates the rendering but stops populating item details',
+      function() {
+        assertCurrentlyRenderedWindow({
+          container: container,
+          source: source,
+          from: 19,
+          to: 40
+        });
+
+        [37, 38, 39, 40].forEach(function(index) {
+          var selector = 'ul li[data-index="' + index + '"]';
+          var item = container.querySelector(selector);
+          assert.ok(item);
+
+          var img = item.querySelector('img');
+          assert.notOk(img.src);
+        });
+      });
+    });
+
+    suite('scrolling really fast >', function() {
       setup(function() {
         container.scrollTop += 1200; // 2.5 viewports
         scheduler.attachDirect.yield();
@@ -205,18 +232,36 @@ suite('FastList >', function() {
           });
         });
 
-        suite('then slowing down down >', function() {
+        suite('then slowing down >', function() {
           setup(function() {
             container.scrollTop += 239; // 1/2 viewport
             scheduler.attachDirect.yield();
           });
 
-          test('it catches up', function() {
+          test('it catches up but is still skipping details', function() {
             assertCurrentlyRenderedWindow({
               container: container,
               source: source,
               from: 45,
-              to: 66
+              to: 66,
+              expectsNoDetail: true
+            });
+          });
+
+          suite('then slowing down a lot >', function() {
+            setup(function() {
+              container.scrollTop += 32; // 1/2 item
+              scheduler.attachDirect.yield();
+            });
+
+            test('it catches up completely with details', function() {
+              assertCurrentlyRenderedWindow({
+                container: container,
+                source: source,
+                from: 46,
+                to: 67,
+                expectsDetail: true
+              });
             });
           });
         });
@@ -259,6 +304,19 @@ suite('FastList >', function() {
 
       container.scrollTop = 0;
       scheduler.attachDirect.yield();
+    });
+
+    test('it does any pending detail population', function() {
+      container.scrollTop = 0;
+      scheduler.attachDirect.yield();
+
+      assertCurrentlyRenderedWindow({
+        container: container,
+        source: source,
+        from: 0,
+        to: 21,
+        expectsDetail: true
+      });
     });
   });
 
@@ -347,6 +405,67 @@ suite('FastList >', function() {
         bubbles: true
       });
       item.dispatchEvent(clickEvt);
+    });
+  });
+
+  suite('When content is late', function() {
+    var fastList, populatePromise;
+
+    setup(function() {
+      populatePromise = new MockPromise();
+      sinon.stub(source, 'populateItem').returns(populatePromise.promise);
+      sinon.stub(source, 'populateItemDetail').returns(false);
+      fastList = new FastList(source);
+      scheduler.mutation.yield();
+    });
+
+    test('it should populate fully once the promise resolves', function() {
+      var items = container.querySelectorAll('ul li');
+      for (var i = 0; i < items.length; i++) {
+        var item = items[i];
+        assert.equal(item.dataset.populated, 'false');
+      }
+
+      source.populateItem.restore();
+      source.populateItemDetail.restore();
+      populatePromise.resolve();
+
+      return Promise.resolve().then(function() {
+        assertCurrentlyRenderedWindow({
+          container: container,
+          source: source,
+          from: 0,
+          to: 21,
+          expectsDetail: true
+        });
+      });
+    });
+
+    test('it should reveal the item with a transition', function() {
+      var trPromise = new MockPromise();
+      var items = container.querySelectorAll('ul li');
+      sinon.stub(scheduler, 'transition').returns(trPromise.promise);
+
+      source.populateItem.restore();
+      source.populateItemDetail.restore();
+      populatePromise.resolve();
+
+      return Promise.resolve().then(function() {
+        scheduler.transition.yield();
+
+        for (var i = 0; i < items.length; i++) {
+          var item = items[i];
+          assert.equal(item.dataset.populated, 'true');
+        }
+
+        trPromise.resolve();
+        return Promise.resolve().then(function() {
+          for (var i = 0; i < items.length; i++) {
+            var item = items[i];
+            assert.equal(item.style.transition, '');
+          }
+        });
+      });
     });
   });
 });

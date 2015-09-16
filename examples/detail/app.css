@@ -1,0 +1,120 @@
+
+/* mini reset */
+* { margin: 0; padding: 0; }
+
+body,
+html {
+  height: 100%;
+  overflow: hidden;
+}
+
+body {
+  display: flex;
+  flex-direction: column;
+}
+
+header,
+footer {
+  height: 50px;
+  background: #eee;
+}
+
+#content {
+  position: relative;
+  flex: 1;
+}
+
+ul {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+
+  background: linear-gradient(to bottom, transparent 0px, transparent 4px, #EDEDED 4px, #EDEDED 84px, transparent 84px),
+              linear-gradient(to top, #bcbcbc, #bcbcbc 1px, white 1px, white);
+  background-position: calc(100% - 4px) top, 0 -88px;
+  background-size: 88px 88px, 100% 88px;
+  background-repeat: repeat-y;
+}
+
+ul li {
+  width: 100%;
+  height: 88px;
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+
+  -moz-user-select: none;
+
+  background: white;
+  border-bottom: 1px #bcbcbc solid;
+
+  z-index: 10;
+}
+
+ul li h3, ul li p {
+  width: calc(100% - 88px - 12px);
+}
+
+ul li h3 {
+  margin: 0;
+  padding: 9px 6px 3px 6px;
+  background: white;
+
+  color: #424242;
+}
+
+ul li p {
+  margin: 0;
+  padding: 3px 6px 10px 6px;
+  background: white;
+
+  color: #797979;
+}
+
+ul li div {
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  width: 80px;
+  height: 80px;
+
+  background: #bcbcbc;
+}
+
+ul li img {
+  width: 88px;
+  height: 88px;
+
+  opacity: 0;
+
+  animation-duration:  0.25s;
+  animation-timing-function: ease-in;
+  animation-fill-mode: both;
+
+  -webkit-animation-duration:  0.25s;
+  -webkit-animation-timing-function: ease-in;
+  -webkit-animation-fill-mode: both;
+}
+
+ul li img.loaded {
+  animation-name: reveal;
+  -webkit-animation-name: reveal;
+}
+
+@keyframes reveal {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@-webkit-keyframes reveal {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
