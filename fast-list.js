@@ -304,8 +304,8 @@ FastList.prototype = {
     return el;
   },
 
-  createSection: function() {
-    var el = this.source.createSection();
+  createSection: function(name) {
+    var el = this.source.createSection(name);
     el.classList.add('fl-section');
     return el;
   },
@@ -344,7 +344,7 @@ FastList.prototype = {
 
     for (var j = 0; j < sections.length; j++) {
       var height = source.getFullSectionHeight(sections[j]);
-      var el = this.createSection();
+      var el = this.createSection(sections[j]);
 
       el.style.height = headerHeight + height + 'px';
       this.source.populateSection(el, sections[j], j);
