@@ -1,5 +1,5 @@
 /* global assert */
-/* exported createDummyData, assertCurrentlyRenderedWindow */
+/* exported createDummyData, assertCurrentlyRenderedWindow, MockPromise */
 
 /**
  * Generates fake data for a fake data source
@@ -29,6 +29,8 @@ function createDummyData(count) {
  * @param {DataSource} rendering.source the DataSource to compare against
  * @param {Number} rendering.from the index of the first item rendered
  * @param {Number} rendering.to the index of the last item rendred
+ * @param {Bool} rendering.expectsDetail optional detail rendering check
+ * @param {Bool} rendering.expectsNoDetail optional detail rendering check
  */
 function assertCurrentlyRenderedWindow(rendering) {
   var displayedIndices = [];
@@ -48,6 +50,15 @@ function assertCurrentlyRenderedWindow(rendering) {
     var expectedPosition = rendering.source.getPositionForIndex(index);
     assert.equal(item.style.transform,
                  'translate3d(0px, ' + expectedPosition + 'px, 0px)');
+
+     // Detail rendering
+    var img = item.querySelector('img');
+    if (rendering.expectsDetail) {
+      var expectedURL = '#' + index + '.png';
+      assert.include(img.src, expectedURL);
+    } else if (rendering.expectsNoDetail) {
+      assert.notOk(img.src);
+    }
   }
 
   displayedIndices.sort(function(a, b) {
@@ -58,3 +69,10 @@ function assertCurrentlyRenderedWindow(rendering) {
   assert.equal(displayedIndices[displayedIndices.length - 1], rendering.to);
   assert.equal(displayedIndices.length, rendering.to - rendering.from + 1);
 }
+
+var MockPromise = function() {
+  this.promise = new Promise(function(resolve, reject) {
+    this.resolve = resolve;
+    this.reject = reject;
+  }.bind(this));
+};

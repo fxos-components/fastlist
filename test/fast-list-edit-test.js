@@ -1,6 +1,6 @@
 /* global suite, sinon, setup, teardown, test, assert,
    DataSource, FastList, fastListEdit,
-   createDummyData, assertCurrentlyRenderedWindow */
+   createDummyData, assertCurrentlyRenderedWindow, MockPromise */
 
 suite('FastList > Edit >', function() {
   'use strict';
@@ -8,13 +8,6 @@ suite('FastList > Edit >', function() {
   var fakeDoc, container, source, fastList;
 
   var scheduler = FastList.scheduler;
-
-  var MockPromise = function() {
-    this.promise = new Promise(function(resolve, reject) {
-      this.resolve = resolve;
-      this.reject = reject;
-    }.bind(this));
-  };
 
   function assertClassOnItems(css, on) {
     var items = container.querySelectorAll('ul li');

@@ -40,6 +40,23 @@ var myList = new FastList({
   populateItem: function(el, index) { ... },
 
   /**
+   * Called when the ressources allows it to do more expensive rendering
+   * (ie. images)
+   * This method isn't mandatory.
+   * @param  {HTMLElement} el Your listTemplate
+   * @param  {Number} index
+   */
+  populateItemDetail: function(el, index) { ... },
+
+  /**
+   * Called when an item is recycled to undo/cleanup the detail
+   * rendering
+   * This method isn't mandatory.
+   * @param  {HTMLElement} el Your listTemplate
+   */
+  unpopulateItemDetail: function(el) { ... },
+
+  /**
    * Called each time a section needs rendering.
    * @param  {HTMLElement} el Your sectionTemplate
    * @param  {Section} section
@@ -149,6 +166,17 @@ var myList = new FastList({
   replaceAtIndex: function(index, record) { ... }
 });
 ```
+
+## If the content is not ready by the time it needs to be rendered
+When the source is not ready to _populate_ an item, maybe because the
+IndexedDB cursor hasn't caught up with scrolling yet it should do the
+following.
+
+* return a Promise from `populateItem`, resolving once the content is
+  ready
+* return `false` if it implements the `populateItemDetail` method
+
+Once the promise resolves, the list will try again to call `populateItem` / `populateItemDetail`.
 
 ## API
 

@@ -44,8 +44,10 @@ function FastList(source) {
   this.els.container.style.overflowY = 'scroll';
 
   this.geometry = {
-    topPosition: 0,
+    topPosition: -1,
     forward: true,
+    busy: false,
+    idle: true,
     viewportHeight: 0,
     itemHeight: 0,
     headerHeight: 0,
@@ -57,8 +59,6 @@ function FastList(source) {
   this.geometry.itemHeight = source.getItemHeight();
 
   this._rendered = false;
-  this._previousTop = -1;
-  this._previousFast = false;
 
   this.reorderingContext = {
     item: null,
@@ -139,31 +139,31 @@ FastList.prototype = {
   },
 
   /**
-   * Updates the rendering window geometry state
+   * Updates the rendering window geometry informations
    *
    * - top position
-   * - previous top position
-   * - previous fast scrolling
+   * - busyness state
+   * - idling state
    *
-   * Returns true when the renderng window moves so fast we should'nt
-   * bother to render
+   * We monitor the distance traveled between 2 handled scroll events to
+   * determine if we can do more expensive rendering (idle) or if we need
+   * to skip rendering altogether (busy).
    *
-   * @return {Bool} fastScrolling
    */
   updateRenderingWindow: function() {
     var geo = this.geometry;
 
     var position = this.els.container.scrollTop;
 
-    // Don't compute velocity on first load
-    if (this._previousTop === -1) {
+    // Don't compute lag on first load
+    if (geo.topPosition === -1) {
       geo.topPosition = position;
     }
 
-    this._previousTop = geo.topPosition;
+    var previousTop = geo.topPosition;
     geo.topPosition = position;
 
-    var distanceSinceLast = geo.topPosition - this._previousTop;
+    var distanceSinceLast = geo.topPosition - previousTop;
 
     if ((distanceSinceLast > 0) && !geo.forward) {
       geo.forward = true;
@@ -173,28 +173,41 @@ FastList.prototype = {
       geo.forward = false;
     }
 
-    if (geo.topPosition === 0 && this._previousTop !== 0) {
+    if (geo.topPosition === 0 && previousTop !== 0) {
       this.els.container.dispatchEvent(new CustomEvent('top-reached'));
     }
 
-    var moved = Math.abs(distanceSinceLast);
-    var fastScrolling = this._previousFast;
-
-    if (!fastScrolling  && moved > geo.viewportHeight * 2) {
-      fastScrolling = true;
-    }
-
-    if (fastScrolling && moved > 0 && moved < geo.viewportHeight * 0.5) {
-      fastScrolling = false;
-    }
-
-    this._previousFast = fastScrolling;
-
-    var onTop = position === 0;
-    var atBottom = position ===
+    var onTop = geo.topPosition === 0;
+    var atBottom = geo.topPosition ===
       (this.source.getFullHeight() - geo.viewportHeight);
 
-    return fastScrolling && !onTop && !atBottom;
+    // Full stop, forcefuly idle
+    if (onTop || atBottom) {
+      geo.busy = false;
+      geo.idle = true;
+      return;
+    }
+
+    var moved = Math.abs(distanceSinceLast);
+
+    var previousBusy = geo.busy;
+    var previousIdle = geo.idle;
+
+    if (!previousBusy  && moved > geo.viewportHeight * 2) {
+      geo.busy = true;
+    }
+
+    if (previousBusy && moved > 0 && moved < geo.viewportHeight * 0.5) {
+      geo.busy = false;
+    }
+
+    if (!previousIdle  && moved < geo.viewportHeight / 8) {
+      geo.idle = true;
+    }
+
+    if (previousIdle && moved > geo.viewportHeight * 0.5) {
+      geo.idle = false;
+    }
   },
 
   /**
@@ -269,11 +282,16 @@ FastList.prototype = {
 
       if (!item) {
         item = findItemFor(i);
+        // Recycling, need to unpopulate and populate with the new content
+        source.unpopulateItemDetail && source.unpopulateItemDetail(item);
+        item.dataset.detailPopulated = false;
         tryToPopulate(item, i, source, true);
         item.classList.toggle('new', i === changedIndex);
       } else if (reload) {
+        // Reloading, re-populating all items
+        item.dataset.detailPopulated = false;
         source.populateItem(item, i);
-      }
+      } // else item is already populated
 
       // There is a chance that the user may
       // have called .replaceChild() inside the
@@ -283,6 +301,19 @@ FastList.prototype = {
 
       var section = source.getSectionFor(i);
       placeItem(item, i, section, geo, source, reload);
+
+      if (!source.populateItemDetail) return;
+
+      // Populating the item detail when we're not too busy scrolling
+      // Note: we're always settling back to an idle stage at some point where
+      // we do all the pending detail populations
+      if (!geo.idle) return;
+
+      // Detail already populated, skipping
+      if (item.dataset.detailPopulated === 'true') return;
+
+      var result = source.populateItemDetail(item, i);
+      if (result !== false) item.dataset.detailPopulated = true;
     }
 
     debugViewport(
@@ -357,8 +388,9 @@ FastList.prototype = {
    */
 
   handleScroll: function(evt) {
-    var fast = this.updateRenderingWindow();
-    if (fast) debug('[x] ---------- faaaaassssstttt');
+    this.updateRenderingWindow();
+
+    if (this.geometry.busy) debug('[x] ---------- faaaaassssstttt');
     else this.render();
   },
 
@@ -503,15 +535,23 @@ function computeIndices(source, geometry) {
   var endIndex;
 
   if (geometry.forward) {
-    startIndex = Math.max(0, criticalStart - before);
-    endIndex = Math.min(
-      lastIndex,
-      criticalEnd + after);
+    startIndex = criticalStart - before;
+    endIndex = criticalEnd + after;
   } else {
-    startIndex = Math.max(0, criticalStart - after);
-    endIndex = Math.min(
-      lastIndex,
-      criticalEnd + before);
+    startIndex = criticalStart - after;
+    endIndex = criticalEnd + before;
+  }
+
+  var extra;
+  if (startIndex < 0) {
+    extra = -startIndex;
+    startIndex = 0;
+    endIndex = Math.min(lastIndex, endIndex + extra);
+  }
+  if (endIndex > lastIndex) {
+    extra = endIndex - lastIndex;
+    endIndex = lastIndex;
+    endIndex = Math.max(0, startIndex + extra);
   }
 
   return {
@@ -542,10 +582,8 @@ function recycle(items, start, end, action) {
 function tryToPopulate(item, index, source, first) {
   debug('try to populate');
 
-  if (parseInt(item.dataset.index) !== index && !first) {
     // The item was probably reused
-    return;
-  }
+  if (parseInt(item.dataset.index) !== index && !first) return;
 
   // TODO: should be in a mutation block when !first
   var populateResult = source.populateItem(item, index);
@@ -567,6 +605,14 @@ function tryToPopulate(item, index, source, first) {
   if (first) {
     item.dataset.populated = true;
     return;
+  }
+
+  // Promise-delayed population, once resolved
+
+  // Doing any pending itemDetail population on it
+  if (source.populateItemDetail && item.dataset.detailPopulated !== 'true') {
+    source.populateItemDetail(item, index);
+    item.dataset.detailPopulated = true;
   }
 
   // Revealing the populated item
@@ -663,7 +709,7 @@ function schedulerShim() {
   var raf = window.requestAnimationFrame;
 
   return {
-    mutation: function(block) { return Promise.resolve(block()); },
+    mutation: function(block) { return Promise.resolve().then(block); },
     transition: function(block, el, event, timeout) {
       block();
       return after(el, event, timeout || 500);
