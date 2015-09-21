@@ -12,6 +12,7 @@ suite('FastList >', function() {
   setup(function() {
     this.sinon = sinon.sandbox.create();
     this.sinon.stub(scheduler, 'attachDirect');
+    this.sinon.stub(scheduler, 'detachDirect');
     this.sinon.stub(scheduler, 'mutation');
 
     fakeDoc = document.createElement('div');
@@ -491,6 +492,28 @@ suite('FastList >', function() {
           }
         });
       });
+    });
+  });
+
+  suite('FastList#destroy()', function() {
+    test('it unbinds the \'scroll\' handler', function() {
+      var fastList = new FastList(source);
+
+      scheduler.mutation.yield();
+      sinon.assert.calledOnce(scheduler.attachDirect);
+      var handler = scheduler.attachDirect.lastCall.args[2];
+
+
+      fastList.destroy();
+
+      var handler2 = scheduler.detachDirect.lastCall.args[2];
+      console.log(handler, handler2, fastList.handleScroll);
+
+      sinon.assert.calledWith(
+        scheduler.detachDirect,
+        fastList.els.container,
+        'scroll'
+      );
     });
   });
 });

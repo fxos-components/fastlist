@@ -84,13 +84,16 @@ function FastList(source) {
     this.updateSections();
     this.render();
 
+    // Bind context early so that is can be detached later
+    this.handleScroll = this.handleScroll.bind(this);
+
     // Bind scroll listeners after setting
     // the initialScrollTop to avoid
     // triggering 'scroll' handler
     schedule.attachDirect(
       this.els.container,
       'scroll',
-      this.handleScroll.bind(this)
+      this.handleScroll
     );
   }.bind(this));
 }
@@ -483,6 +486,20 @@ FastList.prototype = {
         }));
         break;
     }
+  },
+
+  /**
+   * Permanently destroy the list.
+   *
+   * @public
+   */
+  destroy: function() {
+    this.els.itemContainer.innerHTML = '';
+    schedule.detachDirect(
+      this.els.container,
+      'scroll',
+      this.handleScroll
+    );
   }
 };
 
