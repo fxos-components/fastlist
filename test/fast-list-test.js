@@ -93,7 +93,7 @@ suite('FastList >', function() {
 
       test('it renders a whole prerendered viewport of list items', function() {
         // 7.5 per screen * 2.8 (will-change budget) -> 21
-        assert.equal(container.querySelectorAll('ul li').length, 22);
+        assert.equal(container.querySelectorAll('ul li').length, 20);
       });
 
       test('it renders the correct content', function() {
@@ -101,7 +101,7 @@ suite('FastList >', function() {
           container: container,
           source: source,
           from: 0,
-          to: 21
+          to: 19
         });
       });
     });
@@ -172,7 +172,7 @@ suite('FastList >', function() {
         container: container,
         source: source,
         from: 15,
-        to: 36,
+        to: 34,
         expectsDetail: true
       });
     });
@@ -189,10 +189,10 @@ suite('FastList >', function() {
           container: container,
           source: source,
           from: 19,
-          to: 40
+          to: 38
         });
 
-        [37, 38, 39, 40].forEach(function(index) {
+        [35, 36, 37, 38].forEach(function(index) {
           var selector = 'ul li[data-index="' + index + '"]';
           var item = container.querySelector(selector);
           assert.ok(item);
@@ -214,7 +214,7 @@ suite('FastList >', function() {
           container: container,
           source: source,
           from: 15,
-          to: 36
+          to: 34
         });
       });
 
@@ -229,7 +229,7 @@ suite('FastList >', function() {
             container: container,
             source: source,
             from: 15,
-            to: 36
+            to: 34
           });
         });
 
@@ -244,14 +244,14 @@ suite('FastList >', function() {
               container: container,
               source: source,
               from: 45,
-              to: 66,
+              to: 64,
               expectsNoDetail: true
             });
           });
 
           suite('then slowing down a lot >', function() {
             setup(function() {
-              container.scrollTop += 32; // 1/2 item
+              container.scrollTop += 29; // 1/16 viewport
               scheduler.attachDirect.yield();
             });
 
@@ -260,7 +260,7 @@ suite('FastList >', function() {
                 container: container,
                 source: source,
                 from: 46,
-                to: 67,
+                to: 65,
                 expectsDetail: true
               });
             });
@@ -279,7 +279,7 @@ suite('FastList >', function() {
         assertCurrentlyRenderedWindow({
           container: container,
           source: source,
-          from: 5,
+          from: 7,
           to: 26
         });
       });
@@ -315,7 +315,7 @@ suite('FastList >', function() {
         container: container,
         source: source,
         from: 0,
-        to: 21,
+        to: 19,
         expectsDetail: true
       });
     });
@@ -335,7 +335,7 @@ suite('FastList >', function() {
         container: container,
         source: source,
         from: 15,
-        to: 36
+        to: 34
       });
     });
 
@@ -345,7 +345,7 @@ suite('FastList >', function() {
         container: container,
         source: source,
         from: 0,
-        to: 21
+        to: 19
       });
 
       fastList.scrollInstantly(480);
@@ -353,7 +353,7 @@ suite('FastList >', function() {
         container: container,
         source: source,
         from: 4,
-        to: 25
+        to: 23
       });
 
       fastList.scrollInstantly(960);
@@ -361,7 +361,7 @@ suite('FastList >', function() {
         container: container,
         source: source,
         from: 12,
-        to: 33
+        to: 31
       });
     });
   });
@@ -404,7 +404,7 @@ suite('FastList >', function() {
         container: container,
         source: source,
         from: 15,
-        to: 36
+        to: 34
       });
     });
   });
@@ -461,7 +461,7 @@ suite('FastList >', function() {
           container: container,
           source: source,
           from: 0,
-          to: 21,
+          to: 19,
           expectsDetail: true
         });
       });
@@ -503,16 +503,13 @@ suite('FastList >', function() {
       sinon.assert.calledOnce(scheduler.attachDirect);
       var handler = scheduler.attachDirect.lastCall.args[2];
 
-
       fastList.destroy();
-
-      var handler2 = scheduler.detachDirect.lastCall.args[2];
-      console.log(handler, handler2, fastList.handleScroll);
 
       sinon.assert.calledWith(
         scheduler.detachDirect,
         fastList.els.container,
-        'scroll'
+        'scroll',
+        handler
       );
     });
   });
