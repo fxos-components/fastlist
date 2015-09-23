@@ -449,7 +449,7 @@ suite('FastList > Edit >', function() {
             container: container,
             source: source,
             from: 0,
-            to: 21
+            to: 19
           });
         });
 
