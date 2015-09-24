@@ -15,7 +15,8 @@ module.exports = function(config) {
     files: [
       'fast-list.js',
       'fast-list-edit.js',
-      'test/*.js'
+      'test/*.js',
+      'test/test.css'
     ],
 
     // list of files to exclude

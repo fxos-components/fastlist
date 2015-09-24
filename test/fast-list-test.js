@@ -1,5 +1,5 @@
 /* global suite, sinon, setup, teardown, test, assert,
-   DataSource, FastList,
+   DataSource, FastList, assertRenderedViewport,
    createDummyData, assertCurrentlyRenderedWindow, MockPromise */
 
 suite('FastList >', function() {
@@ -17,6 +17,7 @@ suite('FastList >', function() {
 
     fakeDoc = document.createElement('div');
     container = document.createElement('div');
+
     fakeDoc.appendChild(container);
     document.body.appendChild(fakeDoc);
 
@@ -283,6 +284,31 @@ suite('FastList >', function() {
           to: 26
         });
       });
+    });
+  });
+
+  suite('Scroll to bottom >', function() {
+    var fastList;
+
+    setup(function() {
+      fastList = new FastList(source);
+      scheduler.mutation.yield();
+      container.scrollTop = container.scrollHeight - (480 * 2);
+      scheduler.attachDirect.yield();
+    });
+
+    test('it does not throw', function() {
+      container.scrollTop += 480;
+      scheduler.attachDirect.yield();
+
+      var options = {
+        source: source,
+        container: container,
+        from: 993,
+        to: 999
+      };
+
+      assertRenderedViewport(options);
     });
   });
 

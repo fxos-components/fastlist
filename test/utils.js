@@ -1,5 +1,5 @@
 /* global assert */
-/* exported createDummyData, assertCurrentlyRenderedWindow, MockPromise */
+/* exported createDummyData, assertCurrentlyRenderedWindow, MockPromise, assertRenderedViewport */
 
 /**
  * Generates fake data for a fake data source
@@ -68,6 +68,51 @@ function assertCurrentlyRenderedWindow(rendering) {
   assert.equal(displayedIndices[0], rendering.from);
   assert.equal(displayedIndices[displayedIndices.length - 1], rendering.to);
   assert.equal(displayedIndices.length, rendering.to - rendering.from + 1);
+}
+
+/**
+ * Similar to `assertCurrentlyRenderedWindow()`
+ * but only checks items within the viewport
+ * are as expected.
+ *
+ * This is useful as it doesn't mean that
+ * tests are bound to prerendering
+ * implementation details. We're asserting
+ * what the user sees is correct.
+ *
+ * @param  {Object} options
+ */
+function assertRenderedViewport(options) {
+  var items = options.container.querySelectorAll('ul li');
+  var first = options.container.scrollTop;
+  var last = first + options.container.clientHeight - items[0].clientHeight;
+  var count = options.to - options.from + 1;
+
+  for (var i = 0; i < items.length; i++) {
+    var item = items[i];
+    var index = parseInt(item.dataset.index);
+    var position = parseInt(item.dataset.position);
+
+    if (index >= options.from && index <= options.to) {
+      assert.isTrue(position >= first, 'greater than first');
+      assert.isTrue(position <= last, 'less than last');
+
+      // content
+      var expectedContent = options.source.getRecordAt(index);
+      assert.include(item.textContent, expectedContent.title);
+      assert.include(item.textContent, expectedContent.body);
+
+      // position
+      var expectedPosition = options.source.getPositionForIndex(index);
+      assert.equal(item.style.transform,
+        'translate3d(0px, ' + expectedPosition + 'px, 0px)');
+
+      // one more found
+      count--;
+    }
+  }
+
+  assert.equal(count, 0, 'correct number of items in viewport');
 }
 
 var MockPromise = function() {
