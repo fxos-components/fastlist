@@ -1,0 +1,15 @@
+* { margin: 0; padding: 0; }
+
+section > h2 {
+  height: 0;
+}
+
+ul {
+  position: relative;
+}
+
+ul > li {
+  width: 100%;
+  height: 64px;
+  overflow: hidden;
+}
