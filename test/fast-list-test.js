@@ -107,32 +107,6 @@ suite('FastList >', function() {
     });
   });
 
-  test('it accepts prexisting list items', function() {
-    source.items = [];
-
-    var list = document.createElement('ul');
-    container.appendChild(list);
-
-    while (source.items.length < 22) {
-      var item = source.createItem(1);
-      item.className = 'prexisting';
-      item.style.position = 'absolute';
-      item.style.left = '0px';
-      item.style.top = '0px';
-      item.style.overflow = 'hidden';
-      item.style.willChange = 'transform';
-      list.appendChild(item);
-      source.items.push(item);
-    }
-
-    var createItem = sinon.spy(source, 'createItem');
-    var fastList = new FastList(source);
-    scheduler.mutation.yield();
-
-    sinon.assert.notCalled(createItem);
-    fastList; //jshint
-  });
-
   test('it supports plugins', function(done) {
     var fastList = new FastList(source).plugin(function(list) {
       list.pluggedIn = function(cb) {
