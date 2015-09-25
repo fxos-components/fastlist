@@ -34,7 +34,8 @@ function createDummyData(count) {
  */
 function assertCurrentlyRenderedWindow(rendering) {
   var displayedIndices = [];
-  var items = rendering.container.querySelectorAll('ul li');
+  var selector = 'ul li:not([data-populated="false"])';
+  var items = rendering.container.querySelectorAll(selector);
 
   for (var i = 0; i < items.length; i++) {
     var item = items[i];
