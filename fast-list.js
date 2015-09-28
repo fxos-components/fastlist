@@ -36,8 +36,8 @@ function FastList(source) {
     container: source.container,
     list: source.list,
     sections: [],
-    items: source.items || [],
-    itemsInDOM: [].concat(source.items || [])
+    items: [],
+    itemsInDOM: []
   };
 
   this.els.container.style.overflowX = 'hidden';
@@ -350,16 +350,6 @@ FastList.prototype = {
     var el = this.source.createSection(name);
     el.classList.add('fl-section');
     return el;
-  },
-
-  replaceChild: function(replacement, child) {
-    debug('replace child', replacement, child);
-    var itemsInDOM = this.els.itemsInDOM;
-    var items = this.els.items;
-
-    items[items.indexOf(child)] = replacement;
-    itemsInDOM[itemsInDOM.indexOf(child)] = replacement;
-    this.els.itemContainer.replaceChild(replacement, child);
   },
 
   reloadData: function() {
