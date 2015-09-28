@@ -49,6 +49,11 @@ suite('FastList >', function() {
       assert.equal(container.style.overflowY, 'scroll');
     });
 
+    test('it sets the required styles on the list', function() {
+      var list = container.querySelector('ul');
+      assert.equal(list.style.overflow, 'hidden');
+    });
+
     suite('> after a scheduler mutation flush', function() {
       setup(function() {
         scheduler.mutation.yield();
@@ -93,7 +98,7 @@ suite('FastList >', function() {
       });
 
       test('it renders a whole prerendered viewport of list items', function() {
-        // 7.5 per screen * 2.8 (will-change budget) -> 21
+        // 7.5 per screen * 2.7 (will-change budget) -> 20
         assert.equal(container.querySelectorAll('ul li').length, 20);
       });
 
@@ -103,6 +108,51 @@ suite('FastList >', function() {
           source: source,
           from: 0,
           to: 19
+        });
+      });
+
+      suite('when the model becomes tiny >', function() {
+        setup(function() {
+          var tinyData = createDummyData(3);
+          source.data = tinyData;
+          fastList.reloadData();
+          scheduler.mutation.yield();
+        });
+
+        test('the list is resized', function() {
+          assert.equal(container.querySelector('ul').offsetHeight, 192);
+        });
+
+        test('unused items are hidden', function() {
+          var selector = 'ul li:not([data-populated="false"])';
+          assert.equal(container.querySelectorAll(selector).length, 3);
+        });
+
+        test('it renders the correct content', function() {
+          assertCurrentlyRenderedWindow({
+            container: container,
+            source: source,
+            from: 0,
+            to: 2
+          });
+        });
+      });
+
+      suite('then grows back', function() {
+        setup(function() {
+          var bigData = createDummyData(1000);
+          source.data = bigData;
+          fastList.reloadData();
+          scheduler.mutation.yield();
+        });
+
+        test('it renders the correct content', function() {
+          assertCurrentlyRenderedWindow({
+            container: container,
+            source: source,
+            from: 0,
+            to: 19
+          });
         });
       });
     });

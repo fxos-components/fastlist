@@ -42,6 +42,7 @@ function FastList(source) {
 
   this.els.container.style.overflowX = 'hidden';
   this.els.container.style.overflowY = 'scroll';
+  this.els.list.style.overflow = 'hidden';
 
   this.geometry = {
     topPosition: -1,
@@ -257,6 +258,10 @@ FastList.prototype = {
       for (var j = endIndex; j >= startIndex; --j) renderItem(j);
     }
 
+    // When the data changes we need to make sure we're not keeping
+    // outdated pre-rendered content lying around
+    if (reload) cleanUpPrerenderedItems(items, source);
+
     function findItemFor(index) {
       debug('find item for', index, recyclableItems);
       var item;
@@ -292,8 +297,11 @@ FastList.prototype = {
         item.classList.toggle('new', i === changedIndex);
       } else if (reload) {
         // Reloading, re-populating all items
+        // We expect the DataSource to be ready to populate all items so not
+        // going through |tryToPopulate|
         item.dataset.detailPopulated = false;
         source.populateItem(item, i);
+        item.dataset.populated = true;
       } // else item is already populated
 
       // There is a chance that the user may
@@ -595,6 +603,15 @@ function recycle(items, start, end, action) {
   });
 
   return recyclableItems;
+}
+
+function cleanUpPrerenderedItems(items, source) {
+  var fullLength = source.getFullLength();
+  for (var idx in items) {
+    if (idx >= fullLength) {
+      items[idx].dataset.populated = false;
+    }
+  }
 }
 
 function tryToPopulate(item, index, source, first) {
