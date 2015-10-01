@@ -377,15 +377,21 @@ suite('FastList >', function() {
     setup(function() {
       fastList = new FastList(source);
       scheduler.mutation.yield();
+
+      // We want the geometry to have been updated at least once for the
+      // test to be reallistic
+      container.scrollTop = 1;
+      scheduler.attachDirect.yield();
     });
 
-    test('it updates the rendering directly', function() {
+    test('it updates the rendering directly, with details', function() {
       fastList.scrollInstantly(1200);
       assertCurrentlyRenderedWindow({
         container: container,
         source: source,
         from: 15,
-        to: 34
+        to: 34,
+        expectsDetail: true
       });
     });
 
