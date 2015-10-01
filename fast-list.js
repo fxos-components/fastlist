@@ -154,7 +154,7 @@ FastList.prototype = {
    * to skip rendering altogether (busy).
    *
    */
-  updateRenderingWindow: function() {
+  updateRenderingWindow: function(instant) {
     var geo = this.geometry;
 
     var position = this.els.container.scrollTop;
@@ -186,7 +186,7 @@ FastList.prototype = {
       (this.source.getFullHeight() - geo.viewportHeight);
 
     // Full stop, forcefuly idle
-    if (onTop || atBottom) {
+    if (onTop || atBottom || instant) {
       geo.busy = false;
       geo.idle = true;
       return;
@@ -406,7 +406,7 @@ FastList.prototype = {
 
   scrollInstantly: function(position) {
     this.els.container.scrollTop = position;
-    this.updateRenderingWindow();
+    this.updateRenderingWindow(true);
     this.render();
   },
 
