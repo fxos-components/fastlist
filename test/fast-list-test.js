@@ -185,6 +185,8 @@ suite('FastList >', function() {
     var fastList;
 
     setup(function() {
+      this.sinon.useFakeTimers();
+
       fastList = new FastList(source);
       scheduler.mutation.yield();
 
@@ -192,13 +194,25 @@ suite('FastList >', function() {
       scheduler.attachDirect.yield();
     });
 
-    test('it updates the rendering', function() {
+    test('it updates the full rendering', function() {
       assertCurrentlyRenderedWindow({
         container: container,
         source: source,
         from: 15,
         to: 34,
         expectsDetail: true
+      });
+    });
+
+    suite('then coming to a hard stop', function() {
+      setup(function() {
+        // no scroll events for 200ms
+        this.sinon.spy(fastList, 'render');
+        this.sinon.clock.tick(200);
+      });
+
+      test('it doesnt trigger an extra re-render', function() {
+        sinon.assert.notCalled(fastList.render);
       });
     });
 
@@ -224,6 +238,23 @@ suite('FastList >', function() {
 
           var img = item.querySelector('img');
           assert.notOk(img.src);
+        });
+      });
+
+      suite('then coming to a hard stop', function() {
+        setup(function() {
+          // no scroll events for 200ms
+          this.sinon.clock.tick(200);
+        });
+
+        test('it does a full rendering', function() {
+          assertCurrentlyRenderedWindow({
+            container: container,
+            source: source,
+            from: 19,
+            to: 38,
+            expectsDetail: true
+          });
         });
       });
     });
@@ -287,6 +318,18 @@ suite('FastList >', function() {
                 from: 46,
                 to: 65,
                 expectsDetail: true
+              });
+            });
+
+            suite('then coming to a hard stop', function() {
+              setup(function() {
+                // no scroll events for 200ms
+                this.sinon.spy(fastList, 'render');
+                this.sinon.clock.tick(200);
+              });
+
+              test('it doesnt trigger an extra re-render', function() {
+                sinon.assert.notCalled(fastList.render);
               });
             });
           });
