@@ -92,7 +92,7 @@
     },
 
     getFullHeight: function() {
-      this.data.length * itemHeight;
+      return this.data.length * itemHeight;
     },
 
     insertAtIndex: function(index, record, toSection) {

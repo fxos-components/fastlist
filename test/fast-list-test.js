@@ -563,4 +563,59 @@ suite('FastList >', function() {
       );
     });
   });
+
+  suite('initialScrollTop', function() {
+    var setScrollTop;
+    var scrollTopDescriptor = Object.getOwnPropertyDescriptor(
+      Element.prototype,
+      'scrollTop'
+    );
+
+    setup(function() {
+      this.sinon.spy(FastList.prototype, 'render');
+      setScrollTop = this.sinon.spy(scrollTopDescriptor, 'set');
+      Object.defineProperty(Element.prototype, 'scrollTop', {
+        set: setScrollTop,
+        get: scrollTopDescriptor.get
+      });
+    });
+
+    teardown(function() {
+      Object.defineProperty(
+        Element.prototype,
+        'scrollTop',
+        scrollTopDescriptor
+      );
+    });
+
+    test('it sets the scrollTop of the container before render()', function() {
+      source.initialScrollTop = 100;
+      var fastList = new FastList(source);
+
+      // trigger mutation callback
+      scheduler.mutation.yield();
+
+      assert.isTrue(setScrollTop.calledBefore(fastList.render));
+      sinon.assert.calledWith(setScrollTop, 100);
+    });
+
+    test('list.scrollTop returns the validated scrollTop value', function() {
+      source.initialScrollTop = 100;
+      var fastList = new FastList(source);
+
+      // trigger mutation callback
+      scheduler.mutation.yield();
+
+      assert.equal(fastList.scrollTop, 100);
+
+      // invalid
+      source.initialScrollTop = -50;
+      fastList = new FastList(source);
+
+      // trigger mutation callback
+      scheduler.mutation.yield();
+
+      assert.equal(fastList.scrollTop, 0);
+    });
+  });
 });

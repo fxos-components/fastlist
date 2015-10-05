@@ -80,6 +80,7 @@ function FastList(source) {
     // until the list has a height
     if (source.initialScrollTop) {
       this.els.container.scrollTop = source.initialScrollTop;
+      this.geometry.topPosition = this.els.container.scrollTop;
     }
 
     this.updateSections();
