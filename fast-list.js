@@ -60,6 +60,7 @@ function FastList(source) {
   this.geometry.itemHeight = source.getItemHeight();
 
   this._rendered = false;
+  this._scrollStopTimeout = null;
 
   this.reorderingContext = {
     item: null,
@@ -390,10 +391,21 @@ FastList.prototype = {
    */
 
   handleScroll: function(evt) {
+    clearTimeout(this._scrollStopTimeout);
+
     this.updateRenderingWindow();
 
     if (this.geometry.busy) debug('[x] ---------- faaaaassssstttt');
     else this.render();
+
+    if (this.geometry.idle) return;
+
+    // We just did a partial rendering and need to make sure it won't
+    // get stuck this way if the scrolling comes to a hard stop.
+    this._scrollStopTimeout = setTimeout(() => {
+      this.updateRenderingWindow(true);
+      this.render();
+    }, 200);
   },
 
   updateListHeight: function() {
