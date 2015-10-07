@@ -54,8 +54,14 @@
       var body = title.nextSibling;
       var record = this.getRecordAt(i);
 
-      title.firstChild.data = record ? record.title : '';
-      body.firstChild.data = record ? record.body : '';
+      var titleContent = record ? record.title : '';
+      var bodyContent = record ? record.body : '';
+      if (title.firstChild.data !== titleContent) {
+        title.firstChild.data = titleContent;
+      }
+      if (body.firstChild.data !== bodyContent) {
+        body.firstChild.data = bodyContent;
+      }
     },
 
     populateSection: function(el, section, i) {
