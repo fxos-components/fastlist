@@ -682,15 +682,20 @@ function placeItem(item, index, section, geometry, source, reload) {
 
 function resetTransform(item) {
   var position = item.dataset.position;
-  item.style.webkitTransform =
-    item.style.transform = 'translate3d(0, ' + position + 'px, 0)';
   item.dataset.tweakDelta = '';
+
+  var transform = item.style.transform || item.style.webkitTransform;
+  var newTransform = 'translate3d(0px, ' + position + 'px, 0px)';
+  if (transform === newTransform) return;
+
+  item.style.webkitTransform =
+    item.style.transform = newTransform;
 }
 
 function tweakTransform(item, delta) {
   var position = ~~item.dataset.position + ~~delta;
   item.style.webkitTransform =
-    item.style.transform = 'translate3d(0, ' + position + 'px, 0)';
+    item.style.transform = 'translate3d(0px, ' + position + 'px, 0px)';
   item.dataset.tweakDelta = delta;
 }
 
