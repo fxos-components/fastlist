@@ -56,6 +56,8 @@ suite('FastList >', function() {
 
     suite('> after a scheduler mutation flush', function() {
       setup(function() {
+        this.sinon.spy(DocumentFragment.prototype, 'appendChild');
+        this.sinon.spy(fastList.els.itemContainer, 'appendChild');
         scheduler.mutation.yield();
       });
 
@@ -109,6 +111,16 @@ suite('FastList >', function() {
           from: 0,
           to: 19
         });
+      });
+
+      test('it renders into a fragment', function() {
+        var appendChild = DocumentFragment.prototype.appendChild;
+        var sections = container.querySelectorAll('ul section');
+        var items = container.querySelectorAll('ul li');
+        var callCount = sections.length + items.length;
+
+        assert.equal(appendChild.callCount, callCount);
+        sinon.assert.calledOnce(fastList.els.itemContainer.appendChild);
       });
 
       suite('when the model becomes tiny >', function() {
