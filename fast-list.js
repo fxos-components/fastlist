@@ -42,7 +42,6 @@ function FastList(source) {
 
   this.els.container.style.overflowX = 'hidden';
   this.els.container.style.overflowY = 'scroll';
-  this.els.list.style.overflow = 'hidden';
 
   this.geometry = {
     topPosition: -1,
@@ -304,6 +303,9 @@ FastList.prototype = {
         item.dataset.detailPopulated = false;
         source.populateItem(item, i);
         item.dataset.populated = true;
+        if (item.style.display === 'none') {
+          item.style.removeProperty('display');
+        }
       } // else item is already populated
 
       // There is a chance that the user may
@@ -612,7 +614,9 @@ function cleanUpPrerenderedItems(items, source) {
   var fullLength = source.getFullLength();
   for (var idx in items) {
     if (idx >= fullLength) {
-      items[idx].dataset.populated = false;
+      var item = items[idx];
+      item.dataset.populated = false;
+      item.style.display = 'none';
     }
   }
 }

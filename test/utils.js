@@ -42,6 +42,9 @@ function assertCurrentlyRenderedWindow(rendering) {
     var index = parseInt(item.dataset.index);
     displayedIndices.push(index);
 
+    // Visibility
+    assert.equal(item.style.display, '');
+
     // Content
     var expectedContent = rendering.source.getRecordAt(index);
     assert.include(item.textContent, expectedContent.title);

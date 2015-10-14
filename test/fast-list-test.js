@@ -49,11 +49,6 @@ suite('FastList >', function() {
       assert.equal(container.style.overflowY, 'scroll');
     });
 
-    test('it sets the required styles on the list', function() {
-      var list = container.querySelector('ul');
-      assert.equal(list.style.overflow, 'hidden');
-    });
-
     suite('> after a scheduler mutation flush', function() {
       setup(function() {
         scheduler.mutation.yield();
@@ -124,8 +119,12 @@ suite('FastList >', function() {
         });
 
         test('unused items are hidden', function() {
-          var selector = 'ul li:not([data-populated="false"])';
-          assert.equal(container.querySelectorAll(selector).length, 3);
+          var selector = 'ul li[data-populated="false"]';
+          var nodes = container.querySelectorAll(selector);
+          assert.equal(nodes.length, 20 - 3);
+          [].forEach.call(nodes, (node) => {
+            assert.equal(node.style.display, 'none');
+          });
         });
 
         test('it renders the correct content', function() {
@@ -136,22 +135,22 @@ suite('FastList >', function() {
             to: 2
           });
         });
-      });
 
-      suite('then grows back', function() {
-        setup(function() {
-          var bigData = createDummyData(1000);
-          source.data = bigData;
-          fastList.reloadData();
-          scheduler.mutation.yield();
-        });
+        suite('then grows back', function() {
+          setup(function() {
+            var bigData = createDummyData(1000);
+            source.data = bigData;
+            fastList.reloadData();
+            scheduler.mutation.yield();
+          });
 
-        test('it renders the correct content', function() {
-          assertCurrentlyRenderedWindow({
-            container: container,
-            source: source,
-            from: 0,
-            to: 19
+          test('it renders the correct content', function() {
+            assertCurrentlyRenderedWindow({
+              container: container,
+              source: source,
+              from: 0,
+              to: 19
+            });
           });
         });
       });
