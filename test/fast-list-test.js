@@ -5,15 +5,17 @@
 suite('FastList >', function() {
   'use strict';
 
-  var fakeDoc, container, source;
-
   var scheduler = FastList.scheduler;
+  var expectedTotalItems;
+  var itemsPerScreen;
+  var container;
+  var fakeDoc;
+  var source;
 
   setup(function() {
     this.sinon = sinon.sandbox.create();
     this.sinon.stub(scheduler, 'attachDirect');
     this.sinon.stub(scheduler, 'detachDirect');
-    this.sinon.stub(scheduler, 'mutation');
 
     fakeDoc = document.createElement('div');
     container = document.createElement('div');
@@ -30,6 +32,10 @@ suite('FastList >', function() {
     var data = createDummyData(1000);
     source = new DataSource(data);
     source.container = container;
+
+    itemsPerScreen = parseInt(container.style.height) / source.getItemHeight();
+    var multiplier = FastList.prototype.PRERENDER_MULTIPLIER;
+    expectedTotalItems = Math.floor(itemsPerScreen * multiplier);
   });
 
   teardown(function() {
@@ -44,16 +50,16 @@ suite('FastList >', function() {
       fastList = new FastList(source);
     });
 
-    test('it sets the required styles on the container', function() {
-      assert.equal(container.style.overflowX, 'hidden');
-      assert.equal(container.style.overflowY, 'scroll');
-    });
-
-    suite('> after a scheduler mutation flush', function() {
+    suite('> after render', function() {
       setup(function() {
         this.sinon.spy(DocumentFragment.prototype, 'appendChild');
         this.sinon.spy(fastList.els.itemContainer, 'appendChild');
-        scheduler.mutation.yield();
+        return fastList.rendered;
+      });
+
+      test('it sets the required styles on the container', function() {
+        assert.equal(container.style.overflowX, 'hidden');
+        assert.equal(container.style.overflowY, 'scroll');
       });
 
       test('it attaches a direct block to the scroll event', function() {
@@ -65,8 +71,9 @@ suite('FastList >', function() {
         source.getViewportHeight = sinon.stub();
         source.getViewportHeight.returns(400);
         fastList = new FastList(source);
-        scheduler.mutation.yield();
-        sinon.assert.called(source.getViewportHeight);
+        return fastList.rendered.then(() => {
+          sinon.assert.called(source.getViewportHeight);
+        });
       });
 
       test('it sets the required styles on the list items', function() {
@@ -77,7 +84,6 @@ suite('FastList >', function() {
           assert.equal(item.style.left, '0px');
           assert.equal(item.style.top, '0px');
           assert.equal(item.style.overflow, 'hidden');
-          assert.equal(item.style.willChange, 'transform');
         }
       });
 
@@ -95,8 +101,8 @@ suite('FastList >', function() {
       });
 
       test('it renders a whole prerendered viewport of list items', function() {
-        // 7.5 per screen * 2.7 (will-change budget) -> 20
-        assert.equal(container.querySelectorAll('ul li').length, 20);
+        var itemCount = container.querySelectorAll('ul li').length;
+        assert.equal(itemCount, expectedTotalItems);
       });
 
       test('it renders the correct content', function() {
@@ -104,7 +110,7 @@ suite('FastList >', function() {
           container: container,
           source: source,
           from: 0,
-          to: 19
+          to: expectedTotalItems - 1
         });
       });
 
@@ -115,15 +121,16 @@ suite('FastList >', function() {
         var callCount = sections.length + items.length;
 
         assert.equal(appendChild.callCount, callCount);
-        sinon.assert.calledOnce(fastList.els.itemContainer.appendChild);
+
+        // Once for phase1 and onces for phase2
+        sinon.assert.calledTwice(fastList.els.itemContainer.appendChild);
       });
 
       suite('when the model becomes tiny >', function() {
         setup(function() {
           var tinyData = createDummyData(3);
           source.data = tinyData;
-          fastList.reloadData();
-          scheduler.mutation.yield();
+          return fastList.reloadData();
         });
 
         test('the list is resized', function() {
@@ -133,7 +140,7 @@ suite('FastList >', function() {
         test('unused items are hidden', function() {
           var selector = 'ul li[data-populated="false"]';
           var nodes = container.querySelectorAll(selector);
-          assert.equal(nodes.length, 20 - 3);
+          assert.equal(nodes.length, expectedTotalItems - 3);
           [].forEach.call(nodes, (node) => {
             assert.equal(node.style.display, 'none');
           });
@@ -152,8 +159,7 @@ suite('FastList >', function() {
           setup(function() {
             var bigData = createDummyData(1000);
             source.data = bigData;
-            fastList.reloadData();
-            scheduler.mutation.yield();
+            return fastList.reloadData();
           });
 
           test('it renders the correct content', function() {
@@ -161,7 +167,7 @@ suite('FastList >', function() {
               container: container,
               source: source,
               from: 0,
-              to: 19
+              to: expectedTotalItems - 1
             });
           });
         });
@@ -180,7 +186,6 @@ suite('FastList >', function() {
   });
 
   test('.rendered Promise resolves when rendering complete', function() {
-    scheduler.mutation.restore();
     var fastList = new FastList(source);
     var firstPromise = fastList.rendered;
     return firstPromise.then(() => {
@@ -194,23 +199,27 @@ suite('FastList >', function() {
 
   suite('Scrolling >', function() {
     var fastList;
+    var start;
 
     setup(function() {
-      this.sinon.useFakeTimers();
-
       fastList = new FastList(source);
-      scheduler.mutation.yield();
-
-      container.scrollTop = 1200; // 2.5 viewports
-      scheduler.attachDirect.yield();
+      return fastList.rendered.then(function() {
+        this.sinon.useFakeTimers();
+        start = 15;
+        fastList.scrollInstantly(1000);
+        container.scrollTop += 100;
+        scheduler.attachDirect.yield();
+        container.scrollTop += 100;
+        scheduler.attachDirect.yield();
+      }.bind(this));
     });
 
     test('it updates the full rendering', function() {
       assertCurrentlyRenderedWindow({
         container: container,
         source: source,
-        from: 15,
-        to: 34,
+        from: start,
+        to: start + expectedTotalItems - 1,
         expectsDetail: true
       });
     });
@@ -230,19 +239,23 @@ suite('FastList >', function() {
     suite('scrolling a bit faster >', function() {
       setup(function() {
         container.scrollTop += 256; // 4 items
+        start += 4;
         scheduler.attachDirect.yield();
       });
 
       test('it updates the rendering but stops populating item details',
       function() {
+        var end = start + expectedTotalItems - 1;
+
         assertCurrentlyRenderedWindow({
           container: container,
           source: source,
-          from: 19,
-          to: 38
+          from: start,
+          to: end
         });
 
-        [35, 36, 37, 38].forEach(function(index) {
+        // Check the last four items
+        [end--, end--, end--, end].forEach(function(index) {
           var selector = 'ul li[data-index="' + index + '"]';
           var item = container.querySelector(selector);
           assert.ok(item);
@@ -262,8 +275,8 @@ suite('FastList >', function() {
           assertCurrentlyRenderedWindow({
             container: container,
             source: source,
-            from: 19,
-            to: 38,
+            from: start,
+            to: start + expectedTotalItems - 1,
             expectsDetail: true
           });
         });
@@ -273,6 +286,7 @@ suite('FastList >', function() {
     suite('scrolling really fast >', function() {
       setup(function() {
         container.scrollTop += 1200; // 2.5 viewports
+        start = 15;
         scheduler.attachDirect.yield();
       });
 
@@ -280,8 +294,8 @@ suite('FastList >', function() {
         assertCurrentlyRenderedWindow({
           container: container,
           source: source,
-          from: 15,
-          to: 34
+          from: start,
+          to: start + expectedTotalItems - 1
         });
       });
 
@@ -295,14 +309,15 @@ suite('FastList >', function() {
           assertCurrentlyRenderedWindow({
             container: container,
             source: source,
-            from: 15,
-            to: 34
+            from: start,
+            to: start + expectedTotalItems - 1
           });
         });
 
         suite('then slowing down >', function() {
           setup(function() {
             container.scrollTop += 239; // 1/2 viewport
+            start = 45;
             scheduler.attachDirect.yield();
           });
 
@@ -310,8 +325,8 @@ suite('FastList >', function() {
             assertCurrentlyRenderedWindow({
               container: container,
               source: source,
-              from: 45,
-              to: 64,
+              from: start,
+              to: start + expectedTotalItems - 1,
               expectsNoDetail: true
             });
           });
@@ -319,6 +334,7 @@ suite('FastList >', function() {
           suite('then slowing down a lot >', function() {
             setup(function() {
               container.scrollTop += 29; // 1/16 viewport
+              start = 46;
               scheduler.attachDirect.yield();
             });
 
@@ -326,8 +342,8 @@ suite('FastList >', function() {
               assertCurrentlyRenderedWindow({
                 container: container,
                 source: source,
-                from: 46,
-                to: 65,
+                from: start,
+                to: start + expectedTotalItems - 1,
                 expectsDetail: true
               });
             });
@@ -355,11 +371,15 @@ suite('FastList >', function() {
       });
 
       test('it prerenders in the correct direction', function() {
-        assertCurrentlyRenderedWindow({
+        var itemHeight = source.getItemHeight();
+        var start = Math.floor(container.scrollTop / itemHeight);
+        var end = start + Math.floor((start + 480) / itemHeight);
+
+        assertRenderedViewport({
           container: container,
           source: source,
-          from: 7,
-          to: 26
+          from: start,
+          to: end
         });
       });
     });
@@ -370,9 +390,10 @@ suite('FastList >', function() {
 
     setup(function() {
       fastList = new FastList(source);
-      scheduler.mutation.yield();
-      container.scrollTop = container.scrollHeight - (480 * 2);
-      scheduler.attachDirect.yield();
+      return fastList.rendered.then(function() {
+        container.scrollTop = container.scrollHeight - (480 * 2);
+        scheduler.attachDirect.yield();
+      });
     });
 
     test('it does not throw', function() {
@@ -395,10 +416,10 @@ suite('FastList >', function() {
 
     setup(function() {
       fastList = new FastList(source);
-      scheduler.mutation.yield();
-
-      container.scrollTop = 1200;
-      scheduler.attachDirect.yield();
+      return fastList.rendered.then(function() {
+        container.scrollTop = 1200;
+        scheduler.attachDirect.yield();
+      });
     });
 
     test('it dispatches a CustomEvent', function(done) {
@@ -419,7 +440,7 @@ suite('FastList >', function() {
         container: container,
         source: source,
         from: 0,
-        to: 19,
+        to: expectedTotalItems - 1,
         expectsDetail: true
       });
     });
@@ -430,48 +451,56 @@ suite('FastList >', function() {
 
     setup(function() {
       fastList = new FastList(source);
-      scheduler.mutation.yield();
+      return fastList.rendered.then(function() {
 
-      // We want the geometry to have been updated at least once for the
-      // test to be reallistic
-      container.scrollTop = 1;
-      scheduler.attachDirect.yield();
+        // We want the geometry to have been updated at least once for the
+        // test to be reallistic
+        container.scrollTop = 1;
+        scheduler.attachDirect.yield();
+      });
     });
 
     test('it updates the rendering directly, with details', function() {
+      var start = 15;
+      var end = start + expectedTotalItems - 1;
+
       fastList.scrollInstantly(1200);
       assertCurrentlyRenderedWindow({
         container: container,
         source: source,
-        from: 15,
-        to: 34,
+        from: start,
+        to: end,
         expectsDetail: true
       });
     });
 
     test('it supports absolute values', function() {
+      var start = 0;
+
       fastList.scrollInstantly(0);
       assertCurrentlyRenderedWindow({
         container: container,
         source: source,
-        from: 0,
-        to: 19
+        from: start,
+        to: start + expectedTotalItems - 1
       });
 
+      start = 4;
       fastList.scrollInstantly(480);
       assertCurrentlyRenderedWindow({
         container: container,
         source: source,
-        from: 4,
-        to: 23
+        from: start,
+        to: start + expectedTotalItems - 1
       });
 
+      start = 12;
       fastList.scrollInstantly(960);
       assertCurrentlyRenderedWindow({
         container: container,
         source: source,
-        from: 12,
-        to: 31
+        from: start,
+        to: start + expectedTotalItems - 1
       });
     });
   });
@@ -481,18 +510,18 @@ suite('FastList >', function() {
 
     setup(function() {
       fastList = new FastList(source);
-      scheduler.mutation.yield();
+      return fastList.rendered.then(function() {
+        container.scrollTop = 1200;
+        scheduler.attachDirect.yield();
 
-      container.scrollTop = 1200;
-      scheduler.attachDirect.yield();
+        source.data[16].title = 'Totally new title';
+        source.data.push({
+          title: 'Totally new title',
+          body: 'Totally new body'
+        });
 
-      source.data[16].title = 'Totally new title';
-      source.data.push({
-        title: 'Totally new title',
-        body: 'Totally new body'
+        return fastList.reloadData();
       });
-      fastList.reloadData();
-      scheduler.mutation.yield();
     });
 
     test('it keeps the scrolling position', function() {
@@ -514,7 +543,7 @@ suite('FastList >', function() {
         container: container,
         source: source,
         from: 15,
-        to: 34
+        to: 15 + expectedTotalItems - 1
       });
     });
   });
@@ -524,7 +553,7 @@ suite('FastList >', function() {
 
     setup(function() {
       fastList = new FastList(source);
-      scheduler.mutation.yield();
+      return fastList.rendered;
     });
 
     test('it dispatches a CustomEvent', function(done) {
@@ -552,7 +581,7 @@ suite('FastList >', function() {
       sinon.stub(source, 'populateItem').returns(populatePromise.promise);
       sinon.stub(source, 'populateItemDetail').returns(false);
       fastList = new FastList(source);
-      scheduler.mutation.yield();
+      return fastList.rendered;
     });
 
     test('it should populate fully once the promise resolves', function() {
@@ -571,7 +600,7 @@ suite('FastList >', function() {
           container: container,
           source: source,
           from: 0,
-          to: 19,
+          to: expectedTotalItems - 1,
           expectsDetail: true
         });
       });
@@ -606,10 +635,14 @@ suite('FastList >', function() {
   });
 
   suite('FastList#destroy()', function() {
-    test('it unbinds the \'scroll\' handler', function() {
-      var fastList = new FastList(source);
+    var fastList;
 
-      scheduler.mutation.yield();
+    setup(function() {
+      fastList = new FastList(source);
+      return fastList.rendered;
+    });
+
+    test('it unbinds the \'scroll\' handler', function() {
       sinon.assert.calledOnce(scheduler.attachDirect);
       var handler = scheduler.attachDirect.lastCall.args[2];
 
@@ -651,31 +684,26 @@ suite('FastList >', function() {
     test('it sets the scrollTop of the container before render()', function() {
       source.initialScrollTop = 100;
       var fastList = new FastList(source);
-
-      // trigger mutation callback
-      scheduler.mutation.yield();
-
-      assert.isTrue(setScrollTop.calledBefore(fastList.render));
-      sinon.assert.calledWith(setScrollTop, 100);
+      return fastList.rendered.then(function() {
+        assert.isTrue(setScrollTop.calledBefore(fastList.render));
+        sinon.assert.calledWith(setScrollTop, 100);
+      });
     });
 
     test('list.scrollTop returns the validated scrollTop value', function() {
       source.initialScrollTop = 100;
       var fastList = new FastList(source);
+      return fastList.rendered.then(function() {
+        assert.equal(fastList.scrollTop, 100);
 
-      // trigger mutation callback
-      scheduler.mutation.yield();
+        // invalid
+        source.initialScrollTop = -50;
 
-      assert.equal(fastList.scrollTop, 100);
-
-      // invalid
-      source.initialScrollTop = -50;
-      fastList = new FastList(source);
-
-      // trigger mutation callback
-      scheduler.mutation.yield();
-
-      assert.equal(fastList.scrollTop, 0);
+        fastList = new FastList(source);
+        return fastList.rendered;
+      }).then(function() {
+        assert.equal(fastList.scrollTop, 0);
+      });
     });
   });
 });

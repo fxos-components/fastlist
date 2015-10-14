@@ -20,7 +20,6 @@ suite('FastList > Edit >', function() {
 
   setup(function() {
     sinon.stub(scheduler, 'attachDirect');
-    sinon.stub(scheduler, 'mutation');
 
     fakeDoc = document.createElement('div');
     container = document.createElement('div');
@@ -38,12 +37,11 @@ suite('FastList > Edit >', function() {
     source.container = container;
 
     fastList = new FastList(source).plugin(fastListEdit);
-    scheduler.mutation.yield();
+    return fastList.rendered;
   });
 
   teardown(function() {
     scheduler.attachDirect.restore();
-    scheduler.mutation.restore();
     fakeDoc.remove();
   });
 
@@ -141,6 +139,7 @@ suite('FastList > Edit >', function() {
 
         startEvt = makeEvent('mousedown', draggedCenter[0], draggedCenter[1]);
 
+        sinon.stub(scheduler, 'mutation');
         schedulerPromise = new MockPromise();
         scheduler.mutation.returns(schedulerPromise.promise);
 
@@ -149,6 +148,7 @@ suite('FastList > Edit >', function() {
 
       teardown(function() {
         scheduler.feedback.restore();
+        scheduler.mutation.restore();
       });
 
       test('it prevents default', function() {
@@ -180,9 +180,9 @@ suite('FastList > Edit >', function() {
         });
 
         suite('> then', function() {
-          setup(function(done) {
+          setup(function() {
             schedulerPromise.resolve();
-            Promise.resolve().then(done);
+            return Promise.resolve();
           });
 
           test('it attaches a direct block to the move event', function() {
@@ -191,8 +191,8 @@ suite('FastList > Edit >', function() {
           });
 
           suite('> then', function() {
-            setup(function(done) {
-              Promise.resolve().then(done);
+            setup(function() {
+              return Promise.resolve();
             });
 
             test('it schedules a feedback to remove the overlay', function() {
@@ -210,6 +210,7 @@ suite('FastList > Edit >', function() {
         this.sinon = sinon.sandbox.create();
         this.sinon.useFakeTimers();
 
+        this.sinon.stub(scheduler, 'mutation');
         var mutationPromise = new MockPromise();
         scheduler.mutation.returns(mutationPromise.promise);
 
@@ -246,7 +247,7 @@ suite('FastList > Edit >', function() {
         });
 
         test('it moves the dragged item directly', function() {
-          var transform = 'translate3d(0px, -7px, 0px)';
+          var transform = 'translateY(-7px)';
           assert.equal(draggedItem.style.transform, transform);
           assert.equal(draggedItem.dataset.tweakDelta, -199);
         });
@@ -254,7 +255,7 @@ suite('FastList > Edit >', function() {
         test('it schedules a feedback to move 3 items down', function() {
           assert.equal(scheduler.feedback.callCount, 3);
 
-          var tweaked = list.querySelectorAll('li:not([data-tweak-delta=""])');
+          var tweaked = list.querySelectorAll('li[data-tweak-delta]');
           assert.equal(tweaked.length, 3 + 1);
 
           for (var i = 0; i < tweaked.length; i++) {
@@ -280,7 +281,7 @@ suite('FastList > Edit >', function() {
           });
 
           test('it moves the dragged item directly', function() {
-            var transform = 'translate3d(0px, 193px, 0px)';
+            var transform = 'translateY(193px)';
             assert.equal(draggedItem.style.transform, transform);
             assert.equal(draggedItem.dataset.tweakDelta, 1);
           });
@@ -289,7 +290,12 @@ suite('FastList > Edit >', function() {
           function() {
             assert.equal(scheduler.feedback.callCount, 6);
 
-            var reset = list.querySelectorAll('li:not([data-tweak-delta=""])');
+            var items = list.querySelectorAll('li');
+            var reset = [].reduce.call(items, function(result, el) {
+              if (el.dataset.tweakDelta) result.push(el);
+              return result;
+            }, []);
+
             assert.equal(reset.length, 1);
           });
         });
@@ -301,7 +307,7 @@ suite('FastList > Edit >', function() {
         });
 
         test('it moves the dragged item directly', function() {
-          var transform = 'translate3d(0px, 261px, 0px)';
+          var transform = 'translateY(261px)';
           assert.equal(draggedItem.style.transform, transform);
           assert.equal(draggedItem.dataset.tweakDelta, 69);
         });
@@ -309,7 +315,12 @@ suite('FastList > Edit >', function() {
         test('it schedules a feedback to move 1 items up', function() {
           assert.equal(scheduler.feedback.callCount, 1);
 
-          var tweaked = list.querySelectorAll('li:not([data-tweak-delta=""])');
+          var items = list.querySelectorAll('li');
+          var tweaked = [].reduce.call(items, function(result, el) {
+            if (el.dataset.tweakDelta) result.push(el);
+            return result;
+          }, []);
+
           assert.equal(tweaked.length, 1 + 1);
 
           for (var i = 0; i < tweaked.length; i++) {
@@ -335,7 +346,7 @@ suite('FastList > Edit >', function() {
           });
 
           test('it moves the dragged item directly', function() {
-            var transform = 'translate3d(0px, 191px, 0px)';
+            var transform = 'translateY(191px)';
             assert.equal(draggedItem.style.transform, transform);
             assert.equal(draggedItem.dataset.tweakDelta, -1);
           });
@@ -344,7 +355,12 @@ suite('FastList > Edit >', function() {
           function() {
             assert.equal(scheduler.feedback.callCount, 2);
 
-            var reset = list.querySelectorAll('li:not([data-tweak-delta=""])');
+            var items = list.querySelectorAll('li');
+            var reset = [].reduce.call(items, function(result, el) {
+              if (el.dataset.tweakDelta) result.push(el);
+              return result;
+            }, []);
+
             assert.equal(reset.length, 1);
           });
         });
@@ -358,6 +374,7 @@ suite('FastList > Edit >', function() {
         this.sinon = sinon.sandbox.create();
         this.sinon.useFakeTimers();
 
+        this.sinon.stub(scheduler, 'mutation');
         var mutationPromise = new MockPromise();
         scheduler.mutation.returns(mutationPromise.promise);
 
@@ -413,7 +430,12 @@ suite('FastList > Edit >', function() {
       function() {
         assert.equal(scheduler.feedback.callCount, 3 + 1);
 
-        var tweaked = list.querySelectorAll('li:not([data-tweak-delta=""])');
+        var items = list.querySelectorAll('li');
+        var tweaked = [].reduce.call(items, function(result, el) {
+          if (el.dataset.tweakDelta) result.push(el);
+          return result;
+        }, []);
+
         assert.equal(tweaked.length, 3 + 1);
 
         for (var i = 0; i < tweaked.length; i++) {
@@ -449,7 +471,7 @@ suite('FastList > Edit >', function() {
             container: container,
             source: source,
             from: 0,
-            to: 19
+            to: 25
           });
         });
 
