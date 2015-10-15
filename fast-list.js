@@ -83,8 +83,12 @@ function FastList(source) {
       this.geometry.topPosition = this.els.container.scrollTop;
     }
 
-    this.updateSections();
-    this.render();
+    // using a fragment container means we only
+    // endure one document mutation on inititalization
+    var fragment = document.createDocumentFragment();
+    this.updateSections({ fragment: fragment });
+    this.render({ fragment: fragment });
+    this.els.itemContainer.appendChild(fragment);
 
     // Bind context early so that is can be detached later
     this.handleScroll = this.handleScroll.bind(this);
@@ -216,19 +220,27 @@ FastList.prototype = {
   },
 
   /**
-   * Places and populates the item in the rendering window
+   * Places and populates the item
+   * in the rendering window
    *
-   * @param {Bool} reload forces the re-population of all items
-   * @param {Number} changedIndex flags an item as new (for animated insertions)
+   * @param {Object} options
+   * @param {Object} options.reload  forces the re-population of all items
+   * @param {Object} options.fragment  optional fragment to insert items
+   * @param {Object} options.changedIndex  flags item as new
+   *   (for animated insertions)
    */
-  render: function(reload, changedIndex) {
+  render: function(options) {
     debug('render');
 
-    var source = this.source;
-    var items = this.els.items;
+    var reload = options && options.reload;
+    var changedIndex = options && options.changedIndex;
+    var fragment = options && options.fragment;
+
+    var itemContainer = fragment || this.els.itemContainer;
     var itemsInDOM = this.els.itemsInDOM;
+    var items = this.els.items;
+    var source = this.source;
     var geo = this.geometry;
-    var list = this.els.itemContainer;
 
     var indices = computeIndices(this.source, this.geometry);
     var criticalStart = indices.cStart;
@@ -275,7 +287,7 @@ FastList.prototype = {
       } else if (itemsInDOM.length < geo.maxItemCount){
         debug('need to create new node');
         item = self.createItem();
-        list.appendChild(item);
+        itemContainer.appendChild(item);
         itemsInDOM.push(item);
       } else {
         console.warn('missing a cell');
@@ -360,16 +372,18 @@ FastList.prototype = {
     return this.rendered = schedule.mutation(function() {
       this.updateSections();
       this.updateListHeight();
-      this.render(true);
+      this.render({ reload: true });
     }.bind(this));
   },
 
-  updateSections: function() {
+  updateSections: function(options) {
     debug('update sections');
-
+    var fragment = (options && options.fragment);
     var nodes = this.els.itemContainer.querySelectorAll('.fl-section');
+    var items = fragment || document.createDocumentFragment();
     var source = this.source;
 
+    // remove any old sections
     for (var i = 0; i < nodes.length; i++) {
       var toRemove = nodes[i];
       toRemove.remove();
@@ -378,14 +392,18 @@ FastList.prototype = {
     var headerHeight = source.getSectionHeaderHeight();
     var sections = this.source.getSections();
 
+    // create new sections
     for (var j = 0; j < sections.length; j++) {
       var height = source.getFullSectionHeight(sections[j]);
       var el = this.createSection(sections[j]);
 
       el.style.height = headerHeight + height + 'px';
       this.source.populateSection(el, sections[j], j);
-      this.els.itemContainer.appendChild(el);
+      items.appendChild(el);
     }
+
+    // don't append the items if an outside fragment was given
+    if (!fragment) this.els.itemContainer.appendChild(items);
   },
 
   /**
@@ -396,7 +414,6 @@ FastList.prototype = {
     clearTimeout(this._scrollStopTimeout);
 
     this.updateRenderingWindow();
-
     if (this.geometry.busy) debug('[x] ---------- faaaaassssstttt');
     else this.render();
 
@@ -470,7 +487,7 @@ FastList.prototype = {
         this.scrollInstantly(scrollTop + this.geometry.itemHeight);
         this.els.container.dispatchEvent(new CustomEvent('hidden-new-content'));
       } else {
-        this.render(false, 0);
+        this.render({ changedIndex: 0 });
       }
 
       this.updateListHeight();
