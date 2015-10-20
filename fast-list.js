@@ -343,9 +343,17 @@ FastList.prototype = {
 
       if (!item) {
         item = findItemFor(i);
-        // Recycling, need to unpopulate and populate with the new content
-        source.unpopulateItemDetail && source.unpopulateItemDetail(item);
-        item.dataset.detailPopulated = false;
+
+        var shouldUnpopulate = source.unpopulateItemDetail
+          && item.dataset.detailPopulated === 'true';
+
+        // Recycling, need to unpopulate and
+        // populate with the new content
+        if (shouldUnpopulate) {
+          source.unpopulateItemDetail(item);
+          item.dataset.detailPopulated = false;
+        }
+
         tryToPopulate(item, i, source, true);
         item.classList.toggle('new', i === changedIndex);
       } else if (reload) {

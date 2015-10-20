@@ -54,6 +54,7 @@ suite('FastList >', function() {
       setup(function() {
         this.sinon.spy(DocumentFragment.prototype, 'appendChild');
         this.sinon.spy(fastList.els.itemContainer, 'appendChild');
+        this.sinon.spy(source, 'unpopulateItemDetail');
         return fastList.complete;
       });
 
@@ -124,6 +125,10 @@ suite('FastList >', function() {
 
         // Once for phase1 and onces for phase2
         sinon.assert.calledTwice(fastList.els.itemContainer.appendChild);
+      });
+
+      test('unpopulateItemDetail() is not called on setup', function() {
+        sinon.assert.notCalled(source.unpopulateItemDetail);
       });
 
       suite('when the model becomes tiny >', function() {
