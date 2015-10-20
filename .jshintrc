@@ -22,8 +22,6 @@
   "proto": true,
   "boss": true,
 
-  "esnext": true,
-
   "browser": true,
   "devel": true,
   "nonstandard": true,
@@ -31,5 +29,8 @@
 
   "-W078": true,
 
-  "predef": [ "define" ]
+  "predef": [
+    "define",
+    "Promise"
+  ]
 }

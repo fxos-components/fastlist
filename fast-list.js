@@ -67,21 +67,18 @@ function FastList(source) {
   if (!this.els.list) this.els.list = document.createElement('ul');
   if (!this.els.itemContainer) this.els.itemContainer = this.els.list;
 
-  // Perform the first render in
-  // two phases to get content
-  // painted as fast as possible.
+  // Phase1 renders just enough content
+  // for the viewport (without detail).
   this.rendered = schedule
-    .mutation(this.renderPhase1.bind(this))
-    .then(this.renderPhase2.bind(this));
+    .mutation(this.setupPhase1.bind(this));
+
+  // Phase2 renders more list-items and detail
+  this.complete = this.rendered
+    .then(this.setupPhase2.bind(this));
 }
 
 FastList.prototype = {
   PRERENDER_MULTIPLIER: 3.5,
-
-  plugin: function(fn) {
-    fn(this);
-    return this;
-  },
 
   /**
    * The first render of the list aims
@@ -96,8 +93,8 @@ FastList.prototype = {
    *
    * @private
    */
-  renderPhase1: function() {
-    debug('render phase 1');
+  setupPhase1: function() {
+    debug('setup phase 1');
     var fragment = document.createDocumentFragment();
     var container = this.els.container;
 
@@ -161,10 +158,10 @@ FastList.prototype = {
    * @return {Promise}
    * @private
    */
-  renderPhase2: function() {
+  setupPhase2: function() {
     return new Promise(function(resolve) {
       setTimeout(function() {
-        debug('render phase 2');
+        debug('setup phase 2');
         var fragment = document.createDocumentFragment();
         this.render({ fragment: fragment });
         this.els.itemContainer.appendChild(fragment);
@@ -181,12 +178,14 @@ FastList.prototype = {
    * - maximum number of items in the dom
    * - window left for direction changes
    *
+   * @private
    */
   updateContainerGeometry: function() {
     var geo = this.geometry;
+    var viewportHeight = this.getViewportHeight();
+    var itemPerScreen = viewportHeight / geo.itemHeight;
 
-    geo.viewportHeight = this.getViewportHeight();
-    var itemPerScreen = geo.viewportHeight / geo.itemHeight;
+    geo.viewportHeight = viewportHeight;
     geo.maxItemCount = Math.floor(itemPerScreen * this.PRERENDER_MULTIPLIER);
     geo.switchWindow = Math.floor(itemPerScreen / 2);
 
@@ -197,10 +196,11 @@ FastList.prototype = {
    * Returns the height of the list container.
    *
    * Attempts to use user provided .getViewportHeight()
-   * from the configuration, falling back to sync
-   * reflow .offsetHeight :(
+   * from the configuration, falling back to reflow
+   * forcing .offsetHeight :(
    *
    * @return {Number}
+   * @private
    */
   getViewportHeight: function() {
     return this.source.getViewportHeight
@@ -244,9 +244,7 @@ FastList.prototype = {
     var maxScrollTop = fullHeight - viewportHeight;
     var atBottom = geo.topPosition === maxScrollTop;
 
-    if (topReached) {
-      this.els.container.dispatchEvent(new CustomEvent('top-reached'));
-    }
+    if (topReached) this.emit('top-reached');
 
     // Full stop, forcefuly idle
     if (onTop || atBottom || instant) {
@@ -389,6 +387,11 @@ FastList.prototype = {
     );
   },
 
+  /**
+   * Creates a list item.
+   *
+   * @return {HTMLElement}
+   */
   createItem: function() {
     var el = this.source.createItem();
     el.style.position = 'absolute';
@@ -397,6 +400,11 @@ FastList.prototype = {
     return el;
   },
 
+  /**
+   * Creates a list section.
+   *
+   * @return {HTMLElement}
+   */
   createSection: function(name) {
     var el = this.source.createSection(name);
     el.classList.add('fl-section');
@@ -404,7 +412,7 @@ FastList.prototype = {
   },
 
   reloadData: function() {
-    return this.rendered = schedule.mutation(function() {
+    return schedule.mutation(function() {
       this.updateSections();
       this.updateListHeight();
       this.render({ reload: true });
@@ -556,6 +564,32 @@ FastList.prototype = {
         }));
         break;
     }
+  },
+
+  /**
+   * Attach a plugin to a list.
+   *
+   * @param  {Function} fn
+   * @return {FastList}
+   */
+  plugin: function(fn) {
+    fn(this);
+    return this;
+  },
+
+  /**
+   * Emit an event.
+   *
+   * @param  {String} name
+   * @private
+   */
+  emit: function(name, detail) {
+    var e = new CustomEvent(name, {
+      bubbles: false,
+      detail: detail
+    });
+
+    this.els.container.dispatchEvent(e);
   },
 
   /**
