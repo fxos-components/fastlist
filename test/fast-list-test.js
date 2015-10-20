@@ -54,7 +54,7 @@ suite('FastList >', function() {
       setup(function() {
         this.sinon.spy(DocumentFragment.prototype, 'appendChild');
         this.sinon.spy(fastList.els.itemContainer, 'appendChild');
-        return fastList.rendered;
+        return fastList.complete;
       });
 
       test('it sets the required styles on the container', function() {
@@ -71,7 +71,7 @@ suite('FastList >', function() {
         source.getViewportHeight = sinon.stub();
         source.getViewportHeight.returns(400);
         fastList = new FastList(source);
-        return fastList.rendered.then(() => {
+        return fastList.rendered.then(function() {
           sinon.assert.called(source.getViewportHeight);
         });
       });
@@ -141,7 +141,7 @@ suite('FastList >', function() {
           var selector = 'ul li[data-populated="false"]';
           var nodes = container.querySelectorAll(selector);
           assert.equal(nodes.length, expectedTotalItems - 3);
-          [].forEach.call(nodes, (node) => {
+          [].forEach.call(nodes, function(node) {
             assert.equal(node.style.display, 'none');
           });
         });
@@ -183,18 +183,6 @@ suite('FastList >', function() {
     });
 
     fastList.pluggedIn(done);
-  });
-
-  test('.rendered Promise resolves when rendering complete', function() {
-    var fastList = new FastList(source);
-    var firstPromise = fastList.rendered;
-    return firstPromise.then(() => {
-      var items = container.querySelectorAll('li');
-      assert.ok(items.length);
-      fastList.reloadData();
-      assert.notEqual(firstPromise, fastList.rendered);
-      return fastList.rendered;
-    });
   });
 
   suite('Scrolling >', function() {
@@ -581,7 +569,7 @@ suite('FastList >', function() {
       sinon.stub(source, 'populateItem').returns(populatePromise.promise);
       sinon.stub(source, 'populateItemDetail').returns(false);
       fastList = new FastList(source);
-      return fastList.rendered;
+      return fastList.complete;
     });
 
     test('it should populate fully once the promise resolves', function() {
@@ -631,6 +619,26 @@ suite('FastList >', function() {
           }
         });
       });
+    });
+  });
+
+  suite('promise hooks >>', function() {
+    test('it resolves the `rendered` promise after phase1', function() {
+      var fastList = new FastList(source);
+      return fastList.rendered
+        .then(function() {
+          var items = container.querySelectorAll('li');
+          assert.equal(items.length, 8, 'critical items only');
+        });
+    });
+
+    test('it reolves the `complete` promise after phase2', function() {
+      var fastList = new FastList(source);
+      return fastList.complete
+        .then(function() {
+          var items = container.querySelectorAll('li');
+          assert.isTrue(items.length > 8, 'includes prerendered items');
+        });
     });
   });
 
