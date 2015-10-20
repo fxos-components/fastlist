@@ -103,20 +103,24 @@
 
     getIndexAtPosition: function(pos) {
       var index = 0;
+
       for (var section of this.contentMap.values()) {
         pos -= headerHeight;
         var sectionHeight = section.length * itemHeight;
+
         if (pos > sectionHeight) {
           pos -= sectionHeight;
           index += section.length;
           continue;
         }
+
         for (var item of section) {
-          pos -= itemHeight;
-          index++;
           if (pos <= 0 || index === this.getFullLength() - 1) {
             return index;
           }
+
+          pos -= itemHeight;
+          index++;
         }
       }
     },

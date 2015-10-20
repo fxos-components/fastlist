@@ -2,6 +2,7 @@
 
 /**
  * Mini logger
+ *
  * @type {Function}
  */
 var debug = 0 ? console.log.bind(console, '[FastList]') : function() {};
@@ -23,16 +24,11 @@ exports.scheduler = schedule;
 
 function FastList(source) {
   debug('initialize');
+  this._scrollStopTimeout = null;
   this.source = source;
 
-  // List elements aren't required
-  if (!source.list) {
-    source.list = document.createElement('ul');
-    source.container.appendChild(source.list);
-  }
-
   this.els = {
-    itemContainer: source.itemContainer || source.list,
+    itemContainer: source.itemContainer,
     container: source.container,
     list: source.list,
     sections: [],
@@ -40,27 +36,19 @@ function FastList(source) {
     itemsInDOM: []
   };
 
-  this.els.container.style.overflowX = 'hidden';
-  this.els.container.style.overflowY = 'scroll';
-
   this.geometry = {
-    topPosition: -1,
+    topPosition: 0,
     forward: true,
     busy: false,
     idle: true,
+    hasScrolled: false,
+    itemHeight: source.getItemHeight(),
     viewportHeight: 0,
-    itemHeight: 0,
-    headerHeight: 0,
     maxItemCount: 0,
     switchWindow: 0
   };
 
-  this.geometry.headerHeight = source.getSectionHeaderHeight();
-  this.geometry.itemHeight = source.getItemHeight();
-
-  this._rendered = false;
-  this._scrollStopTimeout = null;
-
+  // TODO: Move this to fast-list-edit.js
   this.reorderingContext = {
     item: null,
     initialY: null,
@@ -69,45 +57,120 @@ function FastList(source) {
     moveDown: null,
   };
 
+  // TODO: Move this out of core
   on(this.els.container, 'click', this);
+
+  // Update geometry on resize
   on(window, 'resize', this);
 
-  this.rendered = schedule.mutation(function() {
+  // Create a list element if one wasn't provided
+  if (!this.els.list) this.els.list = document.createElement('ul');
+  if (!this.els.itemContainer) this.els.itemContainer = this.els.list;
+
+  // Perform the first render in
+  // two phases to get content
+  // painted as fast as possible.
+  this.rendered = schedule
+    .mutation(this.renderPhase1.bind(this))
+    .then(this.renderPhase2.bind(this));
+}
+
+FastList.prototype = {
+  PRERENDER_MULTIPLIER: 3.5,
+
+  plugin: function(fn) {
+    fn(this);
+    return this;
+  },
+
+  /**
+   * The first render of the list aims
+   * to get content on the screen as
+   * fast as possible.
+   *
+   * Only the list-items in the viewport
+   * (critical) are rendered, and the
+   * populateItemDetail() stage is
+   * skipped to prevent expensive
+   * render paths being hit.
+   *
+   * @private
+   */
+  renderPhase1: function() {
+    debug('render phase 1');
+    var fragment = document.createDocumentFragment();
+    var container = this.els.container;
+
     this.updateContainerGeometry();
+
+    // Make the container scrollable
+    container.style.overflowX = 'hidden';
+    container.style.overflowY = 'scroll';
     this.updateListHeight();
 
+    // If the list detached (created internally), attach it
+    if (!this.els.list.parentNode) container.appendChild(this.els.list);
+
     // We can't set initial scrollTop
-    // until the list has a height
-    if (source.initialScrollTop) {
-      this.els.container.scrollTop = source.initialScrollTop;
-      this.geometry.topPosition = this.els.container.scrollTop;
+    // until the list has a height.
+    // WARNING: Setting an initial scrollTop
+    // before render forces an extra reflow!
+    if (this.source.initialScrollTop) {
+      container.scrollTop = this.source.initialScrollTop;
+      this.geometry.topPosition = container.scrollTop;
     }
 
-    // using a fragment container means we only
+    // Using a fragment container means we only
     // endure one document mutation on inititalization
-    var fragment = document.createDocumentFragment();
     this.updateSections({ fragment: fragment });
-    this.render({ fragment: fragment });
+
+    // Lightweight render into fragment
+    this.render({
+      fragment: fragment,
+      criticalOnly: true,
+      skipDetail: true
+    });
+
+    // Inject the content fragment
     this.els.itemContainer.appendChild(fragment);
 
-    // Bind context early so that is can be detached later
+    // Bind scroll listeners after setting the
+    // initialScrollTop to avoid triggering 'scroll'
+    // handler. Setting the handler early means
+    // we can render if the user or Gecko
+    // changes the scrollTop before phase2.
     this.handleScroll = this.handleScroll.bind(this);
-
-    // Bind scroll listeners after setting
-    // the initialScrollTop to avoid
-    // triggering 'scroll' handler
     schedule.attachDirect(
       this.els.container,
       'scroll',
       this.handleScroll
     );
-  }.bind(this));
-}
+  },
 
-FastList.prototype = {
-  plugin: function(fn) {
-    fn(this);
-    return this;
+  /**
+   * The second render phase completes
+   * the initialization of the list.
+   *
+   * All list items will be rendered
+   * and the detail (eg. images) will
+   * be populated.
+   *
+   * .processScrollPosition() is called
+   * before render to update the
+   *
+   * @return {Promise}
+   * @private
+   */
+  renderPhase2: function() {
+    return new Promise(function(resolve) {
+      setTimeout(function() {
+        debug('render phase 2');
+        var fragment = document.createDocumentFragment();
+        this.render({ fragment: fragment });
+        this.els.itemContainer.appendChild(fragment);
+        resolve();
+      }.bind(this), 360);
+    }.bind(this));
   },
 
   /**
@@ -124,9 +187,7 @@ FastList.prototype = {
 
     geo.viewportHeight = this.getViewportHeight();
     var itemPerScreen = geo.viewportHeight / geo.itemHeight;
-    // Taking into account the will-change budget multiplier from
-    // layout/base/nsDisplayList.cpp#1193
-    geo.maxItemCount = Math.floor(itemPerScreen * 2.7);
+    geo.maxItemCount = Math.floor(itemPerScreen * this.PRERENDER_MULTIPLIER);
     geo.switchWindow = Math.floor(itemPerScreen / 2);
 
     debug('maxItemCount: ' + geo.maxItemCount);
@@ -158,37 +219,34 @@ FastList.prototype = {
    * determine if we can do more expensive rendering (idle) or if we need
    * to skip rendering altogether (busy).
    *
+   * @private
    */
-  updateRenderingWindow: function(instant) {
+  processScrollPosition: function(instant) {
+    var position = this.els.container.scrollTop;
     var geo = this.geometry;
 
-    var position = this.els.container.scrollTop;
-
-    // Don't compute lag on first load
-    if (geo.topPosition === -1) {
+    // Don't compute lag on first reading
+    if (!geo.hasScrolled) {
       geo.topPosition = position;
+      geo.hasScrolled = true;
     }
 
+    var viewportHeight = geo.viewportHeight;
     var previousTop = geo.topPosition;
+    var delta = position - previousTop;
+
+    geo.forward = isForward(geo.forward, delta);
     geo.topPosition = position;
 
-    var distanceSinceLast = geo.topPosition - previousTop;
+    var onTop = geo.topPosition === 0;
+    var topReached = onTop && previousTop !== 0;
+    var fullHeight = this.source.getFullHeight();
+    var maxScrollTop = fullHeight - viewportHeight;
+    var atBottom = geo.topPosition === maxScrollTop;
 
-    if ((distanceSinceLast > 0) && !geo.forward) {
-      geo.forward = true;
-    }
-
-    if ((distanceSinceLast < 0) && geo.forward) {
-      geo.forward = false;
-    }
-
-    if (geo.topPosition === 0 && previousTop !== 0) {
+    if (topReached) {
       this.els.container.dispatchEvent(new CustomEvent('top-reached'));
     }
-
-    var onTop = geo.topPosition === 0;
-    var atBottom = geo.topPosition ===
-      (this.source.getFullHeight() - geo.viewportHeight);
 
     // Full stop, forcefuly idle
     if (onTop || atBottom || instant) {
@@ -197,26 +255,9 @@ FastList.prototype = {
       return;
     }
 
-    var moved = Math.abs(distanceSinceLast);
-
-    var previousBusy = geo.busy;
-    var previousIdle = geo.idle;
-
-    if (!previousBusy  && moved > geo.viewportHeight * 2) {
-      geo.busy = true;
-    }
-
-    if (previousBusy && moved > 0 && moved < geo.viewportHeight * 0.5) {
-      geo.busy = false;
-    }
-
-    if (!previousIdle  && moved && moved < geo.viewportHeight / 16) {
-      geo.idle = true;
-    }
-
-    if (previousIdle && moved && moved > geo.viewportHeight * 0.25) {
-      geo.idle = false;
-    }
+    var moved = Math.abs(delta);
+    geo.busy = isBusy(geo.busy, moved, viewportHeight);
+    geo.idle = isIdle(geo.idle, moved, viewportHeight);
   },
 
   /**
@@ -232,9 +273,12 @@ FastList.prototype = {
   render: function(options) {
     debug('render');
 
-    var reload = options && options.reload;
-    var changedIndex = options && options.changedIndex;
-    var fragment = options && options.fragment;
+    options = options || {};
+    var changedIndex = options.changedIndex;
+    var criticalOnly = options.criticalOnly;
+    var skipDetail = options.skipDetail;
+    var fragment = options.fragment;
+    var reload = options.reload;
 
     var itemContainer = fragment || this.els.itemContainer;
     var itemsInDOM = this.els.itemsInDOM;
@@ -249,13 +293,11 @@ FastList.prototype = {
     var endIndex = indices.end;
     var self = this;
 
-    // Initial render generating all dom nodes
-    if (!this._rendered) {
-      this._rendered = true;
-      endIndex = Math.min(
-        source.getFullLength() - 1,
-        startIndex + this.geometry.maxItemCount - 1
-      );
+    // Only render the list-items visible
+    // in the viewport (critical).
+    if (criticalOnly) {
+      startIndex = criticalStart;
+      endIndex = criticalEnd;
     }
 
     var recyclableItems = recycle(
@@ -276,7 +318,7 @@ FastList.prototype = {
     if (reload) cleanUpPrerenderedItems(items, source);
 
     function findItemFor(index) {
-      debug('find item for', index, recyclableItems);
+      // debug('find item for', index, recyclableItems);
       var item;
 
       if (recyclableItems.length > 0) {
@@ -285,7 +327,6 @@ FastList.prototype = {
         delete items[recycleIndex];
         debug('found node to recycle', recycleIndex, recyclableItems);
       } else if (itemsInDOM.length < geo.maxItemCount){
-        debug('need to create new node');
         item = self.createItem();
         itemContainer.appendChild(item);
         itemsInDOM.push(item);
@@ -299,6 +340,7 @@ FastList.prototype = {
     }
 
     function renderItem(i) {
+      // debug('render item', i);
       var item = items[i];
 
       if (!item) {
@@ -320,16 +362,10 @@ FastList.prototype = {
         }
       } // else item is already populated
 
-      // There is a chance that the user may
-      // have called .replaceChild() inside the
-      // .populateItem() hook. We redefine `item`
-      // here to make sure we have the latest node.
-      item = items[i];
-
       var section = source.getSectionFor(i);
       placeItem(item, i, section, geo, source, reload);
 
-      if (!source.populateItemDetail) return;
+      if (skipDetail || !source.populateItemDetail) return;
 
       // Populating the item detail when we're not too busy scrolling
       // Note: we're always settling back to an idle stage at some point where
@@ -358,7 +394,6 @@ FastList.prototype = {
     el.style.position = 'absolute';
     el.style.left = el.style.top = 0;
     el.style.overflow = 'hidden';
-    el.style.willChange = 'transform';
     return el;
   },
 
@@ -413,17 +448,20 @@ FastList.prototype = {
   handleScroll: function(evt) {
     clearTimeout(this._scrollStopTimeout);
 
-    this.updateRenderingWindow();
+    this.processScrollPosition();
     if (this.geometry.busy) debug('[x] ---------- faaaaassssstttt');
     else this.render();
 
     if (this.geometry.idle) return;
+    var self = this;
 
-    // We just did a partial rendering and need to make sure it won't
-    // get stuck this way if the scrolling comes to a hard stop.
-    this._scrollStopTimeout = setTimeout(() => {
-      this.updateRenderingWindow(true);
-      this.render();
+    // We just did a partial rendering
+    // and need to make sure it won't
+    // get stuck this way if the
+    // scrolling comes to a hard stop.
+    this._scrollStopTimeout = setTimeout(function() {
+      self.processScrollPosition(true);
+      self.render();
     }, 200);
   },
 
@@ -438,7 +476,7 @@ FastList.prototype = {
 
   scrollInstantly: function(position) {
     this.els.container.scrollTop = position;
-    this.updateRenderingWindow(true);
+    this.processScrollPosition(true);
     this.render();
   },
 
@@ -499,6 +537,8 @@ FastList.prototype = {
       case 'resize':
         this.updateContainerGeometry();
         break;
+
+      // TODO: Move out of core
       case 'click':
         if (this.editing) {
           break;
@@ -568,7 +608,18 @@ function debugViewport(items, forward, cStart, cEnd, start, end) {
   debug(str);
 }
 
+/**
+ * Computes the indices of the first and
+ * and last list items to be rendered and
+ * the indices of the first and last
+ * 'critical' items within the viewport.
+ *
+ * @param  {Object} source
+ * @param  {Object} geometry
+ * @return {Object} {start, end, cStart, cEnd}
+ */
 function computeIndices(source, geometry) {
+  debug('compute indices', geometry.topPosition);
   var criticalStart = source.getIndexAtPosition(geometry.topPosition);
   var criticalEnd = source.getIndexAtPosition(geometry.topPosition +
                                            geometry.viewportHeight);
@@ -577,7 +628,6 @@ function computeIndices(source, geometry) {
   var before = geometry.switchWindow;
   var after = canPrerender - before;
   var lastIndex = source.getFullLength() - 1;
-
   var startIndex;
   var endIndex;
 
@@ -639,7 +689,7 @@ function cleanUpPrerenderedItems(items, source) {
 }
 
 function tryToPopulate(item, index, source, first) {
-  debug('try to populate');
+  // debug('try to populate');
 
     // The item was probably reused
   if (item.dataset.index != index && !first) return;
@@ -688,7 +738,7 @@ function tryToPopulate(item, index, source, first) {
 function placeItem(item, index, section, geometry, source, reload) {
   if (item.dataset.index == index && !reload) {
     // The item was probably reused
-    debug('abort: item resused');
+    // debug('abort: item resused');
     return;
   }
 
@@ -703,20 +753,20 @@ function placeItem(item, index, section, geometry, source, reload) {
 
 function resetTransform(item) {
   var position = item.dataset.position;
-  item.dataset.tweakDelta = '';
+  var transform = 'translateY(' + position + 'px)';
 
-  var transform = item.style.transform || item.style.webkitTransform;
-  var newTransform = 'translate3d(0px, ' + position + 'px, 0px)';
-  if (transform === newTransform) return;
-
-  item.style.webkitTransform =
-    item.style.transform = newTransform;
+  style(item, 'webkitTransform', transform);
+  style(item, 'transform', transform);
 }
 
 function tweakTransform(item, delta) {
+  debug('tweak transform', item, delta);
   var position = ~~item.dataset.position + ~~delta;
-  item.style.webkitTransform =
-    item.style.transform = 'translate3d(0px, ' + position + 'px, 0px)';
+  var transform = 'translateY(' + position + 'px)';
+
+  style(item, 'webkitTransform', transform);
+  style(item, 'transform', transform);
+
   item.dataset.tweakDelta = delta;
 }
 
@@ -764,6 +814,82 @@ function reveal(list) {
   });
 }
 
+/**
+ * Detects if scrolling appears 'blocked'.
+ *
+ * We're BUSY if:
+ *
+ * The scroll position moved more than
+ * twice the height of the viewport
+ * since the last 'scroll' event.
+ *
+ * We're NO LONGER BUSY if:
+ *
+ * The scroll position moved less than
+ * *half* the viewport since the last
+ * 'scroll' event.
+ *
+ * If neither of these conditions are
+ * met we return the previous value.
+ *
+ * @param  {Boolean}  wasBusy
+ * @param  {Number}  moved  distance since last 'scroll'
+ * @param  {Number}  viewportHeight
+ * @return {Boolean}
+ */
+function isBusy(wasBusy, moved, viewportHeight) {
+  if (!wasBusy && moved > viewportHeight * 2) return true;
+  else if (wasBusy && moved && moved < viewportHeight / 2) return false;
+  else return wasBusy;
+}
+
+/**
+ * Detects if scrolling appears 'idle';
+ * meaning scrolling is slow or stopped.
+ *
+ * We're IDLE if:
+ *
+ * The scroll position moved less than
+ * 16th of the height of the viewport
+ * since the last 'scroll' event.
+ *
+ * We're NO LONGER IDLE if:
+ *
+ * The scroll position moved more than
+ * a *quarter* of the viewport since
+ * the last 'scroll' event.
+ *
+ * If neither of these conditions are
+ * met we return the previous value.
+ *
+ * @param  {Boolean}  wasIdle
+ * @param  {Number}  moved  distance since last 'scroll'
+ * @param  {Number}  viewportHeight
+ * @return {Boolean}
+ */
+function isIdle(wasIdle, moved, viewportHeight) {
+  if (!wasIdle && moved && moved < viewportHeight / 16) return true;
+  else if (wasIdle && moved && moved > viewportHeight / 4) return false;
+  else return wasIdle;
+}
+
+/**
+ * Detects if the scroll moved
+ * forward or backwards.
+ *
+ * Sometimes the scoll position doesn't
+ * move at all between renders, in
+ * which case we just return the
+ * last known direction.
+ *
+ * @param  {Boolean}  wasForward
+ * @param  {Number}  delta
+ * @return {Boolean}
+ */
+function isForward(wasForward, delta) {
+  if (!delta) return wasForward;
+  else return delta > 0;
+}
 
 /**
  * Utils
@@ -811,6 +937,22 @@ function schedulerShim() {
 // Shorthand
 function on(el, name, fn) { el.addEventListener(name, fn); }
 function off(el, name, fn) { el.removeEventListener(name, fn); }
+
+/**
+ * Set a style property on an elements.
+ *
+ * First checks that the style property
+ * doesn't already match the given value
+ * to avoid Gecko doing unnecessary
+ * style-recalc.
+ *
+ * @param  {HTMLElement} el
+ * @param  {String} key
+ * @param  {String} value
+ */
+function style(el, key, value) {
+  if (el.style[key] !== value) el.style[key] = value;
+}
 
 });})((typeof define)[0]=='f'&&define.amd?define:(function(n,n2,w){'use strict';
 return(typeof module)[0]=='o'?function(c){c(require,exports,module);}:

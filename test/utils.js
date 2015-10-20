@@ -53,7 +53,7 @@ function assertCurrentlyRenderedWindow(rendering) {
     // Position
     var expectedPosition = rendering.source.getPositionForIndex(index);
     assert.equal(item.style.transform,
-                 'translate3d(0px, ' + expectedPosition + 'px, 0px)');
+                 'translateY(' + expectedPosition + 'px)');
 
      // Detail rendering
     var img = item.querySelector('img');
@@ -84,12 +84,15 @@ function assertCurrentlyRenderedWindow(rendering) {
  * implementation details. We're asserting
  * what the user sees is correct.
  *
+ * NOTE: An item is regarded as 'in viewport'
+ * when at least 1px is visible to the user.
+ *
  * @param  {Object} options
  */
 function assertRenderedViewport(options) {
   var items = options.container.querySelectorAll('ul li');
-  var first = options.container.scrollTop;
-  var last = first + options.container.clientHeight - items[0].clientHeight;
+  var first = options.container.scrollTop - (items[0].clientHeight - 1);
+  var last = options.container.scrollTop + options.container.clientHeight - 1;
   var count = options.to - options.from + 1;
 
   for (var i = 0; i < items.length; i++) {
@@ -98,8 +101,8 @@ function assertRenderedViewport(options) {
     var position = parseInt(item.dataset.position);
 
     if (index >= options.from && index <= options.to) {
-      assert.isTrue(position >= first, 'greater than first');
-      assert.isTrue(position <= last, 'less than last');
+      assert.isTrue(position >= first, position + ' >= ' + first);
+      assert.isTrue(position <= last, position + ' <= ' + last);
 
       // content
       var expectedContent = options.source.getRecordAt(index);
@@ -109,7 +112,7 @@ function assertRenderedViewport(options) {
       // position
       var expectedPosition = options.source.getPositionForIndex(index);
       assert.equal(item.style.transform,
-        'translate3d(0px, ' + expectedPosition + 'px, 0px)');
+        'translateY(' + expectedPosition + 'px)');
 
       // one more found
       count--;
