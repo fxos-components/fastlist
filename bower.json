@@ -24,6 +24,6 @@
     "tests"
   ],
   "dependencies": {
-    "dom-scheduler": "etiennesegonzac/dom-scheduler"
+    "dom-scheduler": "etiennesegonzac/dom-scheduler#~1.0.1"
   }
 }
