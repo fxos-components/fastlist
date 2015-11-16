@@ -503,6 +503,10 @@ suite('FastList >', function() {
 
     setup(function() {
       fastList = new FastList(source);
+
+      this.sinon.stub(source, 'unpopulateItemDetail');
+      this.sinon.stub(source, 'populateItemDetail');
+
       return fastList.rendered.then(function() {
         container.scrollTop = 1200;
         scheduler.attachDirect.yield();
@@ -514,7 +518,7 @@ suite('FastList >', function() {
         });
 
         return fastList.reloadData();
-      });
+      }.bind(this));
     });
 
     test('it keeps the scrolling position', function() {
@@ -539,6 +543,28 @@ suite('FastList >', function() {
         to: 15 + expectedTotalItems - 1
       });
     });
+
+    test('it calls unpopulateItemDetail() for each item rendered', function() {
+      source.unpopulateItemDetail.reset();
+      source.data = createDummyData(100);
+
+      return fastList.reloadData()
+        .then(function() {
+          sinon.assert.callCount(source.unpopulateItemDetail,
+            expectedTotalItems);
+        });
+    });
+
+    test('it calls populateItemDetail() for each item rendered', function() {
+      source.populateItemDetail.reset();
+      source.data = createDummyData(100);
+
+      return fastList.reloadData()
+        .then(function() {
+          sinon.assert.callCount(source.populateItemDetail,
+            expectedTotalItems);
+        });
+    });
   });
 
   suite('Clicking an item', function() {
@@ -550,6 +576,11 @@ suite('FastList >', function() {
     });
 
     test('it dispatches a CustomEvent', function(done) {
+      var item = container.querySelector('ul li');
+      var clickEvt = new CustomEvent('click', {
+        bubbles: true
+      });
+
       container.addEventListener('item-selected', function wait(evt) {
         container.removeEventListener('item-selected', wait);
 
@@ -558,10 +589,6 @@ suite('FastList >', function() {
         done();
       });
 
-      var item = container.querySelector('ul li');
-      var clickEvt = new CustomEvent('click', {
-        bubbles: true
-      });
       item.dispatchEvent(clickEvt);
     });
   });
