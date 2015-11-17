@@ -190,6 +190,58 @@ suite('FastList >', function() {
     fastList.pluggedIn(done);
   });
 
+  suite('empty data-source >', function() {
+    var fastList;
+    var source;
+
+    setup(function() {
+      source = new DataSource([]);
+      source.container = container;
+      this.sinon.spy(source, 'populateItem');
+
+      fastList = new FastList(source);
+      return fastList.complete;
+    });
+
+    test('renderItem() should not be called', function() {
+      sinon.assert.notCalled(source.populateItem);
+    });
+
+    suite('add items in', function() {
+      setup(function() {
+        source.data = createDummyData(100);
+        return fastList.reloadData();
+      });
+
+      test('it renders correctly', function() {
+        assertCurrentlyRenderedWindow({
+          container: container,
+          source: source,
+          from: 0,
+          to: expectedTotalItems - 1
+        });
+      });
+
+      suite('remove all items again', function() {
+        setup(function() {
+          source.data = [];
+          source.populateItem.reset();
+          return fastList.reloadData();
+        });
+
+        test('it does not render anything and hides all items', function() {
+          var items = Array.from(container.querySelectorAll('li'));
+          sinon.assert.notCalled(source.populateItem);
+
+          items.forEach(function(item) {
+            var display = getComputedStyle(item).display;
+            assert.equal(display, 'none');
+          });
+        });
+      });
+    });
+  });
+
   suite('Scrolling >', function() {
     var fastList;
     var start;
