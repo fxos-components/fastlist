@@ -3,7 +3,7 @@ language: node_js
 sudo: required
 
 node_js:
-  - '0.10'
+  - '5.1.0'
 
 addons:
   firefox: '40.0.2'

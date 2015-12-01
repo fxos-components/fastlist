@@ -3,12 +3,13 @@
   "main": "fast-list.js",
   "version": "0.1.5",
   "devDependencies": {
-    "jshint": "^2.7.0",
-    "karma": "^0.12.31",
+    "jshint": "^2.9.1-rc1",
+    "karma": "^0.13.15",
+    "karma-chrome-launcher": "^0.2.2",
     "karma-firefox-launcher": "^0.1.4",
-    "karma-chrome-launcher": "^0.1.4",
-    "karma-mocha": "^0.1.10",
-    "karma-sinon-chai": "^0.3.0"
+    "karma-mocha": "^0.2.1",
+    "karma-sinon-chai": "^0.3.0",
+    "mocha": "^2.3.4"
   },
   "scripts": {
     "lint": "./node_modules/jshint/bin/jshint fast-list.js test/*-test.js",
@@ -17,9 +18,9 @@
   },
   "repository": {
     "type": "git",
-    "url": "git://github.com/gaia-components/fast-list.git"
+    "url": "git://github.com/fxos-components/fast-list.git"
   },
   "bugs": {
-    "url": "https://github.com/gaia-components/fast-list/issues"
+    "url": "https://github.com/fxos-components/fast-list/issues"
   }
 }

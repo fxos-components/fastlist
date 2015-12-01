@@ -1,7 +1,7 @@
 # Fast List
-[![](https://travis-ci.org/gaia-components/fast-list.svg)](https://travis-ci.org/gaia-components/fast-list)
+[![](https://travis-ci.org/fxos-components/fast-list.svg)](https://travis-ci.org/fxos-components/fast-list)
 
-The FastList is a virtual-list implementation based on the DomScheduler. See [`<gaia-fast-list>`](https://github.com/gaia-components/gaia-fast-list) for the simpler, more opinionated web-component.
+The FastList is a virtual-list implementation based on the DomScheduler. See [`<gaia-fast-list>`](https://github.com/fxos-components/gaia-fast-list) for the simpler, more opinionated web-component.
 
 The content of the list comes from a `DataSource` that needs to implement the API described
 below. When the content is edited from the list "Edit mode", the list will trigger calls to the source itself.
