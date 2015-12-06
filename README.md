@@ -3,7 +3,7 @@
 ## Installation
 
 ```bash
-npm install fastlist`
+npm install fastlist
 ```
 
 The FastList is a virtual-list implementation based on the DomScheduler. See [`<fxos-fastlist>`](https://github.com/fxos-components/fxos-fastlist) for the simpler, more opinionated web-component.
