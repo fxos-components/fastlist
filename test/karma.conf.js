@@ -13,8 +13,8 @@ module.exports = function(config) {
 
     // list of files / patterns to load in the browser
     files: [
-      'fast-list.js',
-      'fast-list-edit.js',
+      'fastlist.js',
+      'plugins/edit.js',
       'test/*.js',
       'test/test.css'
     ],
@@ -76,7 +76,10 @@ module.exports = function(config) {
   });
 
   if (process.env.TRAVIS){
-    config.browsers = ['Chrome_travis_ci', 'Firefox'];
+    config.browsers = [
+      'Chrome_travis_ci',
+      'Firefox'
+    ];
   }
 
   config.set(config);

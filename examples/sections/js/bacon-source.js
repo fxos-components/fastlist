@@ -1,5 +1,5 @@
 (function(exports) {
-  /*global poplar*/
+  /*global popel*/
 
   'use strict';
 
@@ -39,13 +39,13 @@
 
   exports.BaconSource.prototype = {
     createItem: function() {
-      return poplar('<li><h3>${title}</h3><p>${body}</p><div class="overlay">' +
+      return popel('<li><h3>${title}</h3><p>${body}</p><div class="overlay">' +
       '<div class="cursor">↕︎</div></div></li>');
     },
 
     populateItem: function(el, i) {
       var record = this.getRecordAt(i);
-      poplar.populate(el, record);
+      popel.populate(el, record);
     },
 
     createSection: function() {
