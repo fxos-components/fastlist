@@ -1012,4 +1012,4 @@ function style(el, key, value) {
   if (el.style[key] !== value) el.style[key] = value;
 }
 
-});})((typeof define)[0]=='f'&&define.amd?define:(function(n,n2,w){return(typeof module)[0]=='o'?function(c){c(require,exports,module);}:function(c){var m={exports:{}};c(function(n){w[n];},m.exports,m);w[n]=w[n2]=m.exports;};})('FastList','fast-list',this));/*jshint ignore:line*/
+});})((typeof define)[0]=='f'&&define.amd?define:(function(n,n2,w){return(typeof module)[0]=='o'?function(c){c(require,exports,module);}:function(c){var m={exports:{}};c(function(n){w[n];},m.exports,m);w[n]=w[n2]=m.exports;};})('FastList','fastlist',this));/*jshint ignore:line*/
