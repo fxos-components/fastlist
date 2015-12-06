@@ -1,6 +1,12 @@
 # Fast List
 [![](https://travis-ci.org/fxos-components/fast-list.svg)](https://travis-ci.org/fxos-components/fast-list)
 
+## Installation
+
+```bash
+npm install fastlist`
+```
+
 The FastList is a virtual-list implementation based on the DomScheduler. See [`<gaia-fast-list>`](https://github.com/fxos-components/gaia-fast-list) for the simpler, more opinionated web-component.
 
 The content of the list comes from a `DataSource` that needs to implement the API described
