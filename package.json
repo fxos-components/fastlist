@@ -1,6 +1,6 @@
 {
-  "name": "fast-list",
-  "main": "fast-list.js",
+  "name": "fastlist",
+  "main": "fastlist.js",
   "version": "0.1.5",
   "devDependencies": {
     "jshint": "^2.9.1-rc1",
@@ -9,18 +9,19 @@
     "karma-firefox-launcher": "^0.1.4",
     "karma-mocha": "^0.2.1",
     "karma-sinon-chai": "^0.3.0",
-    "mocha": "^2.3.4"
+    "mocha": "^2.3.4",
+    "popel": "^1.0.2"
   },
   "scripts": {
-    "lint": "./node_modules/jshint/bin/jshint fast-list.js test/*-test.js",
-    "test": "./node_modules/karma/bin/karma start test/karma.conf.js --single-run",
-    "test-dev": "./node_modules/karma/bin/karma start test/karma.conf.js"
+    "lint": "jshint fastlist.js test/*-test.js",
+    "test": "karma start test/karma.conf.js --single-run",
+    "test-dev": "karma start test/karma.conf.js"
   },
   "repository": {
     "type": "git",
-    "url": "git://github.com/fxos-components/fast-list.git"
+    "url": "git://github.com/fxos-components/fastlist.git"
   },
   "bugs": {
-    "url": "https://github.com/fxos-components/fast-list/issues"
+    "url": "https://github.com/fxos-components/fastlist/issues"
   }
 }
