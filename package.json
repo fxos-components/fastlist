@@ -1,7 +1,7 @@
 {
   "name": "fastlist",
   "main": "fastlist.js",
-  "version": "1.0.3",
+  "version": "1.0.4",
   "dependencies": {
     "dom-scheduler": "^2.0.0"
   },
