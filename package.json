@@ -2,6 +2,9 @@
   "name": "fastlist",
   "main": "fastlist.js",
   "version": "1.0.2",
+  "dependencies": {
+    "dom-scheduler": "^2.0.0"
+  },
   "devDependencies": {
     "jshint": "^2.9.1-rc1",
     "karma": "^0.13.15",
