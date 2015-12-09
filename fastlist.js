@@ -1,4 +1,4 @@
-!(function(define){'use strict';define(function(require,exports,module){
+!(function() {
 
 /**
  * Mini logger
@@ -14,13 +14,7 @@ var debug = 0 ? console.log.bind(console, '[FastList]') : function() {};
  * @type {Object}
  */
 var schedule = window.scheduler || schedulerShim();
-
-/**
- * Exports
- */
-
-exports = module.exports = FastList;
-exports.scheduler = schedule;
+FastList.scheduler = schedule;
 
 function FastList(source) {
   debug('initialize');
@@ -1012,4 +1006,12 @@ function style(el, key, value) {
   if (el.style[key] !== value) el.style[key] = value;
 }
 
-});})((typeof define)[0]=='f'&&define.amd?define:(function(n,n2,w){return(typeof module)[0]=='o'?function(c){c(require,exports,module);}:function(c){var m={exports:{}};c(function(n){w[n];},m.exports,m);w[n]=w[n2]=m.exports;};})('FastList','fastlist',this));/*jshint ignore:line*/
+/**
+ * Exports
+ */
+
+if ((typeof define)[0] == 'f' && define.amd) define(function() { return FastList; });
+else if ((typeof module)[0] == 'o') module.exports = FastList;
+else window.FastList = FastList;
+
+})();
